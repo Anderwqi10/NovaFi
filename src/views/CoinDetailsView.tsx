@@ -1,103 +1,83 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useLiveData } from "../hooks/useLiveData";
+import { fetchCoinDetail, fetchCoinChart } from "../services/coingecko.service";
 
-const coinData: Record<string, any> = {
-  Bitcoin: {
-    symbol: "BTC",
-    color: "#f7931a",
-    price: "$27,340.00",
-    change: "+1.64%",
-    volume: "$18.2B",
-    marketCap: "$530.4B",
-    rate: "1 BTC = 27,340 USD",
-    description:
-      "Bitcoin is the world's first decentralized digital currency, created in 2009 by the pseudonymous Satoshi Nakamoto. It operates on a peer-to-peer network without a central authority, enabling secure, borderless transactions through cryptographic proof.",
-  },
-  Ethereum: {
-    symbol: "ETH",
-    color: "#00d4b5",
-    price: "$11,898.15",
-    change: "+1.64%",
-    volume: "$47.22B",
-    marketCap: "$219.24B",
-    rate: "1 Eth = 380.43 USD",
-    description:
-      "Launched in 2015, Ethereum is an open-source, blockchain-based, decentralized software platform used for its own cryptocurrency, ether. It enables SmartContracts and Distributed Applications (DApps) to be built and run without any downtime, fraud, control, or interference from a third party.\n\nEthereum is not just a platform but also a programming language (Turing complete) running on a blockchain, helping developers to build and publish distributed applications.",
-  },
-  Monero: {
-    symbol: "XMR",
-    color: "#ff6600",
-    price: "$148.30",
-    change: "+0.92%",
-    volume: "$78M",
-    marketCap: "$2.7B",
-    rate: "1 XMR = 148.30 USD",
-    description:
-      "Monero is a privacy-focused cryptocurrency that uses ring signatures, stealth addresses, and RingCT to obfuscate sender, receiver, and amount details on its blockchain.",
-  },
-  Litecoin: {
-    symbol: "LTC",
-    color: "#a0aec0",
-    price: "$68.20",
-    change: "-0.45%",
-    volume: "$320M",
-    marketCap: "$4.9B",
-    rate: "1 LTC = 68.20 USD",
-    description:
-      "Litecoin is a peer-to-peer Internet currency that enables instant, near-zero cost payments to anyone in the world. It is an open source, global payment network.",
-  },
-};
-
-const chartData = [
-  { week: "Week 01", v: 380000 }, { week: "Week 02", v: 320000 },
-  { week: "Week 03", v: 280000 }, { week: "Week 04", v: 500000 },
-  { week: "Week 05", v: 820000 }, { week: "Week 06", v: 220000 },
-  { week: "Week 07", v: 380000 }, { week: "Week 08", v: 520000 },
-  { week: "Week 09", v: 680000 }, { week: "Week 10", v: 800000 },
+const coins = [
+  { id: "bitcoin", label: "Bitcoin", symbol: "BTC", icon: "₿", color: "#f7931a" },
+  { id: "ethereum", label: "Ethereum", symbol: "ETH", icon: "Ξ", color: "#00d4b5" },
+  { id: "monero", label: "Monero", symbol: "XMR", icon: "ɱ", color: "#ff6600" },
+  { id: "litecoin", label: "Litecoin", symbol: "LTC", icon: "Ł", color: "#a0aec0" },
 ];
 
-const coinIcons: Record<string, string> = {
-  Bitcoin: "₿",
-  Ethereum: "Ξ",
-  Monero: "ɱ",
-  Litecoin: "Ł",
-};
+const timeOptions = [
+  { label: "1D", days: 1 },
+  { label: "7D", days: 7 },
+  { label: "1M", days: 30 },
+  { label: "1A", days: 365 },
+];
+
+const fmt = (n: number) =>
+  n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${n?.toLocaleString()}`;
 
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm ${className}`}>
-    {children}
+  <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm ${className}`}>{children}</div>
+);
+
+const Spinner = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
   </div>
 );
 
 export default function CoinDetailsView() {
-  const [activeCoin, setActiveCoin] = useState("Ethereum");
-  const coin = coinData[activeCoin];
+  const [activeCoin, setActiveCoin] = useState(coins[1]);
+  const [activeTime, setActiveTime] = useState(timeOptions[0]);
+
+  const detailFetcher = useCallback(
+    () => fetchCoinDetail(activeCoin.id),
+    [activeCoin.id]
+  );
+  const chartFetcher = useCallback(
+    () => fetchCoinChart(activeCoin.id, activeTime.days),
+    [activeCoin.id, activeTime.days]
+  );
+
+  const { data: detail, loading: dLoading, lastUpdated } = useLiveData(detailFetcher, 30000);
+  const { data: chartData, loading: cLoading } = useLiveData(chartFetcher, 30000);
+
+  const md = detail?.market_data;
+  const price = md?.current_price?.usd;
+  const change24h = md?.price_change_percentage_24h;
+  const volume = md?.total_volume?.usd;
+  const marketCap = md?.market_cap?.usd;
+  const positive = (change24h ?? 0) >= 0;
 
   return (
     <div className="w-full px-8 md:px-16 py-4">
       {/* Header row */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-        <h1 className="text-white text-3xl font-bold">Coin Details</h1>
-        <div className="flex gap-6">
-          {Object.keys(coinData).map((name) => (
+        <h1 className="text-white text-3xl font-bold">Detalles de Moneda</h1>
+        <div className="flex gap-4 flex-wrap">
+          {coins.map((c) => (
             <button
-              key={name}
-              onClick={() => setActiveCoin(name)}
+              key={c.id}
+              onClick={() => setActiveCoin(c)}
               className={`flex items-center gap-2 pb-1 text-sm font-semibold transition-all ${
-                activeCoin === name
+                activeCoin.id === c.id
                   ? "text-white border-b-2 border-[#e84141]"
                   : "text-white/50 hover:text-white border-b-2 border-transparent"
               }`}
             >
               <span
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: coinData[name].color }}
+                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                style={{ background: c.color }}
               >
-                {coinIcons[name]}
+                {c.icon}
               </span>
-              {name}
+              {c.label}
             </button>
           ))}
         </div>
@@ -107,97 +87,130 @@ export default function CoinDetailsView() {
         {/* About card */}
         <Card className="p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="text-white font-semibold">About</span>
-            <button className="text-white/40 hover:text-white">⋮</button>
+            <span className="text-white font-semibold">Sobre</span>
+            {lastUpdated && (
+              <span className="text-white/25 text-xs">{lastUpdated.toLocaleTimeString("es")}</span>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl font-bold"
-              style={{ background: coin.color }}
-            >
-              {coinIcons[activeCoin]}
+
+          {dLoading ? (
+            <div className="flex flex-col gap-3">
+              <div className="h-14 w-14 rounded-full bg-white/10 animate-pulse" />
+              <div className="h-4 w-32 bg-white/10 animate-pulse rounded" />
+              <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
+              <div className="h-3 w-5/6 bg-white/10 animate-pulse rounded" />
             </div>
-            <div>
-              <div className="text-white font-bold text-lg">{activeCoin}</div>
-              <div className="text-white/40 text-sm">{coin.symbol}</div>
-              <div className="text-white/40 text-xs">{coin.rate}</div>
-            </div>
-          </div>
-          <p className="text-white/50 text-xs leading-5 whitespace-pre-line">{coin.description}</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                {detail?.image?.small ? (
+                  <img src={detail.image.small} alt={activeCoin.label} className="w-14 h-14 rounded-full" />
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl font-bold"
+                    style={{ background: activeCoin.color }}
+                  >
+                    {activeCoin.icon}
+                  </div>
+                )}
+                <div>
+                  <div className="text-white font-bold text-lg">{activeCoin.label}</div>
+                  <div className="text-white/40 text-sm uppercase">{activeCoin.symbol}</div>
+                  <div className="text-white/40 text-xs">
+                    1 {activeCoin.symbol} = ${price?.toLocaleString()} USD
+                  </div>
+                </div>
+              </div>
+              {detail?.description?.en && (
+                <p className="text-white/50 text-xs leading-5 line-clamp-8">
+                  {detail.description.en.replace(/<[^>]+>/g, "")}
+                </p>
+              )}
+            </>
+          )}
         </Card>
 
         {/* Chart card */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-1 flex-wrap gap-3">
             <div>
-              <div className="text-white font-semibold text-lg">Coin Chart</div>
-              <div className="text-white/40 text-xs">Lorem ipsum dolor sit amet, consectetur</div>
+              <div className="text-white font-semibold text-lg">Gráfico</div>
+              <div className="text-white/40 text-xs">Precio en tiempo real</div>
             </div>
             <div className="flex gap-2">
-              <button className="flex items-center gap-2 bg-white/5 border border-white/10 text-white text-xs px-3 py-1.5 rounded-lg">
-                📅 4 June 2020 – 17 June 2020
-              </button>
-              <button className="flex items-center gap-2 bg-white/5 border border-white/10 text-white text-xs px-3 py-1.5 rounded-lg">
-                USD ($ US Dollar)
-                <svg width="10" height="10" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-              </button>
+              {timeOptions.map((t) => (
+                <button
+                  key={t.label}
+                  onClick={() => setActiveTime(t)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                    activeTime.label === t.label
+                      ? "bg-white text-[#1a1a6e] font-bold"
+                      : "text-white/50 border border-white/10 hover:text-white"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Stats row */}
           <div className="flex gap-8 mt-4 mb-6 flex-wrap">
             <div>
-              <div className="text-white/40 text-xs">Price</div>
-              <div className="text-white text-2xl font-bold">{coin.price}</div>
+              <div className="text-white/40 text-xs">Precio</div>
+              {dLoading ? (
+                <div className="h-8 w-32 bg-white/10 animate-pulse rounded mt-1" />
+              ) : (
+                <div className="text-white text-2xl font-bold">${price?.toLocaleString()}</div>
+              )}
             </div>
             <div>
-              <div className="text-white/40 text-xs">24h% change</div>
-              <div className="text-green-400 font-semibold text-sm flex items-center gap-1">
-                {coin.change} ▲
+              <div className="text-white/40 text-xs">Cambio 24h</div>
+              <div className={`font-semibold text-sm flex items-center gap-1 mt-1 ${positive ? "text-green-400" : "text-red-400"}`}>
+                {positive ? "+" : ""}{change24h?.toFixed(2)}% {positive ? "▲" : "▼"}
               </div>
             </div>
             <div>
-              <div className="text-white/40 text-xs">Volume (24h)</div>
-              <div className="text-white font-semibold">{coin.volume}</div>
+              <div className="text-white/40 text-xs">Volumen (24h)</div>
+              <div className="text-white font-semibold mt-1">{volume ? fmt(volume) : "—"}</div>
             </div>
             <div>
-              <div className="text-white/40 text-xs">Market Cap</div>
-              <div className="text-white font-semibold">{coin.marketCap}</div>
+              <div className="text-white/40 text-xs">Cap. Mercado</div>
+              <div className="text-white font-semibold mt-1">{marketCap ? fmt(marketCap) : "—"}</div>
             </div>
           </div>
 
-          {/* Chart */}
-          <div className="h-64 relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData} margin={{ top: 20, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="coinGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={coin.color} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={coin.color} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="week" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{ background: "#1a1a5e", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#fff", fontSize: 12 }}
-                  formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Value"]}
-                />
-                <ReferenceLine x="Week 06" stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
-                <Area type="monotone" dataKey="v" stroke={coin.color} strokeWidth={2.5} fill="url(#coinGrad)" dot={false}
-                  activeDot={{ r: 6, fill: coin.color, stroke: "#fff", strokeWidth: 2 }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-
-            {/* Tooltip bubble */}
-            <div
-              className="absolute top-2 left-[48%] bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
-              style={{ transform: "translateX(-50%)" }}
-            >
-              <div>$748k</div>
-              <div className="font-normal opacity-90">2 July 2020</div>
+          {cLoading ? (
+            <Spinner />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData ?? []} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="coinGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={activeCoin.color} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={activeCoin.color} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip
+                    contentStyle={{ background: "#1a1a5e", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#fff", fontSize: 12 }}
+                    formatter={(v: any) => [`$${Number(v).toLocaleString()}`, activeCoin.symbol]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="price"
+                    stroke={activeCoin.color}
+                    strokeWidth={2.5}
+                    fill="url(#coinGrad)"
+                    dot={false}
+                    activeDot={{ r: 5, fill: activeCoin.color, stroke: "#fff", strokeWidth: 2 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-          </div>
+          )}
         </Card>
       </div>
     </div>

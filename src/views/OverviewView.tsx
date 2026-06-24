@@ -1,28 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useLiveData } from "../hooks/useLiveData";
+import { fetchTopCoins, fetchGlobal, fetchCoinChart, CoinMarket } from "../services/coingecko.service";
 
-const lineData = [
-  { t: "19:00", v: 42000 }, { t: "19:10", v: 40000 }, { t: "19:20", v: 38000 },
-  { t: "19:30", v: 36000 }, { t: "19:40", v: 32000 }, { t: "19:50", v: 22000 },
-];
-
-const barData = [
-  { t: "19:00", v: 48000 }, { t: "19:05", v: 34000 }, { t: "19:10", v: 50000 },
-  { t: "19:15", v: 28000 }, { t: "19:20", v: 42000 }, { t: "19:25", v: 22000 },
-  { t: "19:30", v: 38000 }, { t: "19:35", v: 44000 }, { t: "19:40", v: 36000 },
-  { t: "19:45", v: 48000 }, { t: "19:50", v: 30000 },
-];
-
-const tokens = [
-  { rank: 1, coin: "BNB", price: "$285.40", change: "+2.14%", volume: "$1.2B", positive: true },
-  { rank: 2, coin: "ETH", price: "$1,890.20", change: "-0.83%", volume: "$8.4B", positive: false },
-  { rank: 3, coin: "BTC", price: "$27,340.00", change: "+1.64%", volume: "$18.2B", positive: true },
-  { rank: 4, coin: "MATIC", price: "$0.8820", change: "+3.22%", volume: "$412M", positive: true },
-  { rank: 5, coin: "SOL", price: "$21.45", change: "-1.10%", volume: "$890M", positive: false },
-];
+const fmt = (n: number) =>
+  n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${n.toLocaleString()}`;
 
 const tooltipStyle = {
   background: "#1a1a5e",
@@ -33,13 +18,55 @@ const tooltipStyle = {
 };
 
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 ${className}`}>
-    {children}
+  <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 ${className}`}>{children}</div>
+);
+
+const Spinner = () => (
+  <div className="flex items-center justify-center h-56">
+    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
   </div>
 );
 
+const LastUpdated = ({ date }: { date: Date | null }) =>
+  date ? (
+    <span className="text-white/30 text-xs">
+      Actualizado {date.toLocaleTimeString("es")}
+    </span>
+  ) : null;
+
+const SparkLine = ({ prices, positive }: { prices: number[]; positive: boolean }) => {
+  const data = prices.slice(-20).map((p, i) => ({ i, p }));
+  return (
+    <div className="w-20 h-8">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id={`sg${positive}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={positive ? "#4ade80" : "#f87171"} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={positive ? "#4ade80" : "#f87171"} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area type="monotone" dataKey="p" stroke={positive ? "#4ade80" : "#f87171"} strokeWidth={1.5} fill={`url(#sg${positive})`} dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
 export default function OverviewView() {
   const [activeTab, setActiveTab] = useState("Overview");
+
+  const globalFetcher = useCallback(() => fetchGlobal(), []);
+  const coinsFetcher = useCallback(() => fetchTopCoins(10), []);
+  const chartFetcher = useCallback(() => fetchCoinChart("bitcoin", 1), []);
+
+  const { data: global, loading: gLoading, lastUpdated: gUpdated } = useLiveData(globalFetcher);
+  const { data: coins, loading: cLoading, lastUpdated: cUpdated } = useLiveData(coinsFetcher);
+  const { data: chartData, loading: chLoading } = useLiveData(chartFetcher);
+
+  const barData = chartData
+    ? chartData.filter((_, i) => i % 3 === 0).map((d) => ({ t: d.time, v: d.price }))
+    : [];
 
   return (
     <div className="w-full px-8 md:px-16 py-4">
@@ -64,56 +91,77 @@ export default function OverviewView() {
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.4)" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
-          <input
-            placeholder="Search terms here..."
-            className="bg-transparent text-sm text-white/60 outline-none placeholder-white/30 w-48"
-          />
-          <button className="bg-[#1e1e7a] text-white text-xs px-3 py-1 rounded-full border border-white/20">
-            Search
-          </button>
+          <input placeholder="Buscar..." className="bg-transparent text-sm text-white/60 outline-none placeholder-white/30 w-36" />
+          <button className="bg-[#1e1e7a] text-white text-xs px-3 py-1 rounded-full border border-white/20">Buscar</button>
         </div>
       </div>
 
-      {/* Charts Row */}
+      {/* Global stats */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Liquidity */}
         <Card>
-          <div className="text-white font-bold text-lg mb-1">Liquidity</div>
-          <div className="text-white text-3xl font-bold mb-1">$355 352 102</div>
-          <div className="text-white/40 text-sm mb-6">Sep 19, 2022</div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={lineData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#5b9cf6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#5b9cf6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="t" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Liquidity"]} />
-                <Area type="monotone" dataKey="v" stroke="#5b9cf6" strokeWidth={2} fill="url(#blueGrad)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div className="flex items-start justify-between mb-1">
+            <div>
+              <div className="text-white font-bold text-lg">Liquidez Total</div>
+              {gLoading ? (
+                <div className="h-9 w-48 bg-white/10 animate-pulse rounded mt-1" />
+              ) : (
+                <div className="text-white text-3xl font-bold mt-1">
+                  {global ? fmt(global.total_market_cap.usd) : "—"}
+                </div>
+              )}
+            </div>
+            <LastUpdated date={gUpdated} />
           </div>
+          {chLoading ? (
+            <Spinner />
+          ) : (
+            <div className="h-56 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="blueGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#5b9cf6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#5b9cf6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="time" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Precio BTC"]} />
+                  <Area type="monotone" dataKey="price" stroke="#5b9cf6" strokeWidth={2} fill="url(#blueGrad)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
-        {/* 24H Volume */}
         <Card>
-          <div className="text-white font-bold text-lg mb-1">24H Volume</div>
-          <div className="text-white text-3xl font-bold mb-1">$125 352 002</div>
-          <div className="text-white/40 text-sm mb-6">Sep 19, 2022</div>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <XAxis dataKey="t" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis hide />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Volume"]} />
-                <Bar dataKey="v" fill="rgba(91,156,246,0.5)" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="flex items-start justify-between mb-1">
+            <div>
+              <div className="text-white font-bold text-lg">Volumen 24H</div>
+              {gLoading ? (
+                <div className="h-9 w-40 bg-white/10 animate-pulse rounded mt-1" />
+              ) : (
+                <div className="text-white text-3xl font-bold mt-1">
+                  {global ? fmt(global.total_volume.usd) : "—"}
+                </div>
+              )}
+            </div>
+            <LastUpdated date={gUpdated} />
           </div>
+          {chLoading ? (
+            <Spinner />
+          ) : (
+            <div className="h-56 mt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="t" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <YAxis hide />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Precio"]} />
+                  <Bar dataKey="v" fill="rgba(91,156,246,0.5)" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -121,15 +169,9 @@ export default function OverviewView() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white text-xl font-bold">Top Tokens</h2>
-          <div className="flex gap-2">
-            <button className="flex items-center gap-2 bg-white/5 border border-white/10 text-white text-sm px-4 py-2 rounded-full">
-              USDT
-              <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
-            </button>
-            <button className="flex items-center gap-2 bg-white/5 border border-white/10 text-white text-sm px-4 py-2 rounded-full">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
-              Filter Periode
-            </button>
+          <div className="flex items-center gap-3">
+            <LastUpdated date={cUpdated} />
+            <span className="text-white/30 text-xs">· se actualiza cada 30s</span>
           </div>
         </div>
 
@@ -137,32 +179,52 @@ export default function OverviewView() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/10">
-                {["Rank", "Coin", "Last Price", "Change (24h)", "Volume (24h)", "Graph"].map((h) => (
-                  <th key={h} className="text-left text-white/50 text-xs font-medium px-6 py-4">
-                    {h} {h !== "Graph" && <span className="ml-1 opacity-60">⇅</span>}
-                  </th>
+                {["#", "Moneda", "Precio", "Cambio 24h", "Volumen 24h", "Cap. Mercado", "Gráfico"].map((h) => (
+                  <th key={h} className="text-left text-white/50 text-xs font-medium px-5 py-4">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {tokens.map((t) => (
-                <tr key={t.rank} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="px-6 py-4 text-white/60 text-sm">{t.rank}</td>
-                  <td className="px-6 py-4 text-white font-medium text-sm">{t.coin}</td>
-                  <td className="px-6 py-4 text-white text-sm">{t.price}</td>
-                  <td className={`px-6 py-4 text-sm font-medium ${t.positive ? "text-green-400" : "text-red-400"}`}>{t.change}</td>
-                  <td className="px-6 py-4 text-white/70 text-sm">{t.volume}</td>
-                  <td className="px-6 py-4">
-                    <div className="w-20 h-8 opacity-60">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={lineData.slice(0, 4)}>
-                          <Area type="monotone" dataKey="v" stroke={t.positive ? "#4ade80" : "#f87171"} strokeWidth={1.5} fill="none" dot={false} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {cLoading
+                ? Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-white/5">
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <td key={j} className="px-5 py-4">
+                          <div className="h-4 bg-white/10 animate-pulse rounded w-16" />
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                : (coins ?? []).map((coin: CoinMarket, i: number) => {
+                    const pos = coin.price_change_percentage_24h >= 0;
+                    return (
+                      <tr key={coin.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                        <td className="px-5 py-3 text-white/40 text-sm">{i + 1}</td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <img src={coin.image} alt={coin.name} className="w-6 h-6 rounded-full" />
+                            <div>
+                              <div className="text-white text-sm font-medium">{coin.name}</div>
+                              <div className="text-white/40 text-xs uppercase">{coin.symbol}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3 text-white text-sm font-medium">
+                          ${coin.current_price.toLocaleString()}
+                        </td>
+                        <td className={`px-5 py-3 text-sm font-semibold ${pos ? "text-green-400" : "text-red-400"}`}>
+                          {pos ? "+" : ""}{coin.price_change_percentage_24h.toFixed(2)}%
+                        </td>
+                        <td className="px-5 py-3 text-white/60 text-sm">{fmt(coin.total_volume)}</td>
+                        <td className="px-5 py-3 text-white/60 text-sm">{fmt(coin.market_cap)}</td>
+                        <td className="px-5 py-3">
+                          {coin.sparkline_in_7d && (
+                            <SparkLine prices={coin.sparkline_in_7d.price} positive={pos} />
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
             </tbody>
           </table>
         </div>

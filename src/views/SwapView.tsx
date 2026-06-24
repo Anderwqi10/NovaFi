@@ -1,53 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useLiveData } from "../hooks/useLiveData";
+import { fetchCoinChart, fetchTopCoins } from "../services/coingecko.service";
 
-const priceData = [
-  { time: "12:00", price: 12.1 },
-  { time: "13:00", price: 11.8 },
-  { time: "14:00", price: 11.5 },
-  { time: "15:00", price: 11.9 },
-  { time: "16:00", price: 12.3 },
-  { time: "17:00", price: 12.0 },
-  { time: "18:00", price: 12.4 },
-  { time: "19:00", price: 12.2 },
-  { time: "20:00", price: 12.8 },
-  { time: "21:00", price: 13.1 },
-  { time: "22:00", price: 13.6 },
-  { time: "23:00", price: 14.0 },
-  { time: "00:00", price: 14.5 },
-  { time: "03:00", price: 14.2 },
-  { time: "06:00", price: 14.8 },
-  { time: "09:00", price: 15.1 },
-  { time: "12:00", price: 15.35 },
+const timeOptions: { label: string; days: number | string }[] = [
+  { label: "1H", days: 0.04 },
+  { label: "24H", days: 1 },
+  { label: "7D", days: 7 },
+  { label: "1M", days: 30 },
+  { label: "1A", days: 365 },
 ];
 
-const timeFilters = ["15 min", "30 min", "1H", "24H", "WEEK", "MONTH", "ALL"];
-
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div
-    className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm ${className}`}
-  >
-    {children}
+  <div className={`rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm ${className}`}>{children}</div>
+);
+
+const Spinner = () => (
+  <div className="flex items-center justify-center h-64">
+    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
   </div>
 );
 
 export default function SwapView() {
-  const [activeFilter, setActiveFilter] = useState("24H");
+  const [activeFilter, setActiveFilter] = useState(timeOptions[1]);
   const [fromAmount, setFromAmount] = useState("");
-  const [toAmount, setToAmount] = useState("");
+
+  const chartFetcher = useCallback(
+    () => fetchCoinChart("binancecoin", activeFilter.days),
+    [activeFilter.days]
+  );
+  const priceFetcher = useCallback(() => fetchTopCoins(5), []);
+
+  const { data: chartData, loading: chartLoading, lastUpdated } = useLiveData(chartFetcher, 30000);
+  const { data: coins, loading: coinsLoading } = useLiveData(priceFetcher, 30000);
+
+  const bnb = coins?.find((c) => c.id === "binancecoin");
+  const currentPrice = bnb?.current_price ?? 0;
+  const change24h = bnb?.price_change_percentage_24h ?? 0;
+  const positive = change24h >= 0;
+
+  const latestTime = chartData?.[chartData.length - 1]?.time ?? "";
 
   return (
     <div className="w-full px-8 md:px-16 py-4">
       {/* Tabs */}
       <div className="flex gap-2 mb-8">
-        {["SWAP", "Liquidity"].map((tab) => (
+        {["SWAP", "Liquidez"].map((tab) => (
           <button
             key={tab}
             className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
@@ -66,68 +66,73 @@ export default function SwapView() {
         <Card className="p-6">
           {/* Time filters */}
           <div className="flex gap-2 mb-6 justify-end flex-wrap">
-            {timeFilters.map((f) => (
+            {timeOptions.map((f) => (
               <button
-                key={f}
+                key={f.label}
                 onClick={() => setActiveFilter(f)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                  activeFilter === f
+                  activeFilter.label === f.label
                     ? "bg-white text-[#1a1a6e] font-bold"
                     : "text-white/60 hover:text-white border border-white/10"
                 }`}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
 
-          {/* Price info */}
+          {/* Price */}
           <div className="mb-6">
-            <div className="flex items-baseline gap-3">
-              <span className="text-4xl font-bold text-white">$15.35</span>
-              <span className="text-green-400 font-semibold">+34.69%</span>
+            {coinsLoading ? (
+              <div className="h-10 w-48 bg-white/10 animate-pulse rounded" />
+            ) : (
+              <div className="flex items-baseline gap-3">
+                <span className="text-4xl font-bold text-white">
+                  ${currentPrice.toLocaleString()}
+                </span>
+                <span className={`font-semibold ${positive ? "text-green-400" : "text-red-400"}`}>
+                  {positive ? "+" : ""}{change24h.toFixed(2)}%
+                </span>
+              </div>
+            )}
+            <div className="text-white/40 text-sm mt-1 flex items-center gap-2">
+              <span>BNB/USD</span>
+              {lastUpdated && (
+                <span className="text-white/25 text-xs">· {lastUpdated.toLocaleTimeString("es")}</span>
+              )}
             </div>
-            <div className="text-white/40 text-sm mt-1">2022.11.18. 22:34</div>
           </div>
 
           {/* Chart */}
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={priceData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="orangeGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f7931a" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#f7931a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="time"
-                  tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis hide />
-                <Tooltip
-                  contentStyle={{
-                    background: "#1a1a5e",
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    borderRadius: 8,
-                    color: "#fff",
-                    fontSize: 12,
-                  }}
-                  formatter={(v: any) => [`$${v}`, "Price"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="price"
-                  stroke="#f7931a"
-                  strokeWidth={2}
-                  fill="url(#orangeGrad)"
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {chartLoading ? (
+            <Spinner />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="bnbGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f7931a" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#f7931a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip
+                    contentStyle={{ background: "#1a1a5e", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#fff", fontSize: 12 }}
+                    formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "BNB"]}
+                  />
+                  <Area type="monotone" dataKey="price" stroke="#f7931a" strokeWidth={2} fill="url(#bnbGrad)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         {/* Swap Widget */}
@@ -145,7 +150,7 @@ export default function SwapView() {
 
           {/* From */}
           <div className="rounded-xl bg-white/5 border border-white/10 p-4 mb-2">
-            <div className="text-white/50 text-xs mb-2 font-medium">From</div>
+            <div className="text-white/50 text-xs mb-2 font-medium">Desde</div>
             <div className="flex items-center justify-between">
               <input
                 type="number"
@@ -165,7 +170,11 @@ export default function SwapView() {
                 </div>
               </div>
             </div>
-            <div className="text-white/30 text-xs mt-2">Balance: 0.0</div>
+            <div className="text-white/30 text-xs mt-2">
+              {fromAmount && currentPrice
+                ? `≈ $${(parseFloat(fromAmount) * currentPrice).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                : "Balance: 0.0"}
+            </div>
           </div>
 
           {/* Swap arrows */}
@@ -179,25 +188,18 @@ export default function SwapView() {
 
           {/* To */}
           <div className="rounded-xl bg-white/5 border border-white/10 p-4 mb-6">
-            <div className="text-white/50 text-xs mb-2 font-medium">To</div>
+            <div className="text-white/50 text-xs mb-2 font-medium">Para</div>
             <div className="flex items-center justify-between">
-              <input
-                type="number"
-                value={toAmount}
-                onChange={(e) => setToAmount(e.target.value)}
-                placeholder="0.0"
-                className="bg-transparent text-2xl text-white/40 outline-none w-28 placeholder-white/30"
-              />
+              <span className="text-2xl text-white/30">0.0</span>
               <button className="bg-[#1e1e7a] text-white text-sm font-semibold px-4 py-2 rounded-full border border-white/20 hover:bg-[#2a2a9e] transition-all">
-                Select a Token
+                Seleccionar token
               </button>
             </div>
             <div className="text-white/30 text-xs mt-2">Balance: 0.0</div>
           </div>
 
-          {/* Action button */}
           <button className="w-full py-4 rounded-xl bg-[#1a1a5e] border border-white/10 text-white font-semibold text-base hover:bg-[#22227a] transition-all">
-            Enter an Amount
+            Ingresa un monto
           </button>
         </Card>
       </div>
