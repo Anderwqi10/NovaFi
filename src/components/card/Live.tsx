@@ -190,7 +190,7 @@ export const FlipCardBack = ({
     (async () => {
       setBalance(await getBalance());
     })();
-  }, []);
+  }, [getBalance, setBalance]);
 
   useEffect(() => {
     if (balance) {

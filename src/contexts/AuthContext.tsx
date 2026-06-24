@@ -3,7 +3,7 @@ import CustomModal from "../UI/CustomModal";
 import Login from "../components/auth/Login";
 import Register from "../components/auth/Register";
 import ForgotPassword from "../components/auth/ForgotPassword";
-import ChangePassword from "../components/auth/Change Password";
+import ChangePassword from "../components/auth/ChangePassword";
 
 export type AuthContextType = {
   user: IUser | null;

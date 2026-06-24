@@ -108,17 +108,8 @@ const Dashboard: React.FC<{}> = () => {
   const setDisplayData = useCallback(async (selectedEpoch: number) => {
     const epochIds = [];
     const tempRounds = [];
-    const prevData: any = {};
-    if (rounds.length > 0) {
-      rounds.forEach((round) => {
-        prevData[round.epoch] = { ...round };
-      });
-    }
     for (let index = PREVIOUS_ROUNDS + 1; index > 0; index--) {
       tempRounds.push({
-        ...(prevData[selectedEpoch - index]
-          ? prevData[selectedEpoch - index]
-          : {}),
         live: true,
         active: false,
         epoch: selectedEpoch - index,
@@ -129,7 +120,6 @@ const Dashboard: React.FC<{}> = () => {
       live: true,
       active: true,
       epoch: selectedEpoch,
-      ...(prevData[selectedEpoch] ? prevData[selectedEpoch] : {}),
     });
     for (let index = 1; index <= NEXT_ROUNDS; index++) {
       epochIds.push(selectedEpoch + index);
@@ -162,7 +152,7 @@ const Dashboard: React.FC<{}> = () => {
       );
       setUserRounds(userRounds);
     }
-  }, [account, getRoundsData, lumanagiPredictionV1Contract, rounds]);
+  }, [account, getRoundsData, lumanagiPredictionV1Contract]);
   /**
    * Handles callback for start round event
    * @param epoch Epoch of newly started round

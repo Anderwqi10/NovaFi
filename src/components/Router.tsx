@@ -1,33 +1,47 @@
 import React from "react";
-
 import { Routes, Route, Outlet, Navigate } from "react-router-dom";
-import Dashboard from "../views/Dashboard";
-import Footer from "./Footer";
+
 import Header from "./Header";
+import Footer from "./Footer";
+import PrivateRoutes from "./helper/PrivateRoutes";
+import PublicRoutes from "./helper/PublicRoutes";
+
+import Dashboard from "../views/Dashboard";
+import SwapView from "../views/SwapView";
+import OverviewView from "../views/OverviewView";
+import CoinDetailsView from "../views/CoinDetailsView";
+import NFTView from "../views/NFTView";
+import BlogView from "../views/BlogView";
 import GoogleLogin from "../views/GoogleLogin";
 import GoogleRedirect from "../views/GoogleRedirect";
 import ResetPassword from "./auth/ResetPassword";
-import PublicRoutes from "./helper/PublicRoutes.tsx";
-import PrivateRoutes from "./helper/PrivateRoutes";
 import Profile from "./profile/Profile";
 import EditProfile from "./profile/EditProfile";
 
-const Layout = () => {
-  return (
-    <>
-      <Header />
+const Layout = () => (
+  <>
+    <Header />
+    <main className="min-h-screen">
       <Outlet />
-      <Footer />
-    </>
-  );
-};
+    </main>
+    <Footer />
+  </>
+);
 
 export function Routers() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/prediction" element={<Dashboard />} />
+        {/* New design screens */}
+        <Route path="/swap" element={<SwapView />} />
+        <Route path="/liquidity" element={<SwapView />} />
+        <Route path="/overview" element={<OverviewView />} />
+        <Route path="/coins" element={<CoinDetailsView />} />
+        <Route path="/nft" element={<NFTView />} />
+        <Route path="/blog" element={<BlogView />} />
 
+        {/* Existing routes */}
+        <Route path="/prediction" element={<Dashboard />} />
         <Route
           path="/reset-password"
           element={
@@ -61,7 +75,9 @@ export function Routers() {
           }
         />
         <Route path="/google/redirect" element={<GoogleRedirect />} />
-        <Route path="/" element={<Navigate to="/prediction" />} />
+
+        {/* Default: Swap as home */}
+        <Route path="/" element={<Navigate to="/swap" />} />
       </Route>
     </Routes>
   );

@@ -1,114 +1,84 @@
-import React, { useContext, useEffect, useState } from "react";
-
-import LumangiLogo from "../assets/images/LumangiLogo.svg";
-import RewardWheel from "../assets/images/RewardWheel.svg";
-
-import Button from "../UI/Button";
+import React, { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useWeb3React } from "@web3-react/core";
 import ConnectWallet from "./auth/ConnectWallet";
-import { AuthContext, ActionTypes } from "../contexts/AuthContext";
-// const style = {
-//   position: "absolute" as "absolute",
-//   top: "50%",
-//   left: "50%",
-//   transform: "translate(-50%, -50%)",
-//   // width: 400,
-//   p: 4,
-// };
+
+const DotGridLogo = () => (
+  <div className="grid grid-cols-3 gap-[5px] w-9 h-9">
+    {Array.from({ length: 9 }).map((_, i) => (
+      <div key={i} className="w-2 h-2 rounded-full bg-white" />
+    ))}
+  </div>
+);
 
 export function Header() {
-  const { updateAuthAction, isAuthenticated } = useContext(AuthContext);
   const { account } = useWeb3React();
-
-  const handleLogin = () => {
-    updateAuthAction(ActionTypes.Login);
-  }; //TODO
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
-
+  const location = useLocation();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [selectedWallet, setSelectedWallet] = useState<
     "MetaMask" | "WalletConnect" | "Coinbase" | null
   >(null);
-  useEffect(() => {
-    if (account && selectedWallet) {
-      setIsAuthModalOpen(false);
-    }
-  }, [account, selectedWallet]);
+
+  const truncate = (addr: string) =>
+    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
 
   return (
-    <>
-      <div className="flex flex-col sm:flex-row items-center justify-between w-full px-4 sm:px-8 md:px-12 lg:px-20 mt-5 mb-6 sm:mb-10 gap-4 sm:gap-0">
-        <div className="flex items-center w-full sm:w-auto justify-center sm:justify-start order-2 sm:order-1">
-          <div
-            className="rounded-lg w-full sm:w-auto"
-            style={{
-              background: "linear-gradient(135deg, #414593 0%, #00022E 100%)",
-              backgroundBlendMode: "hard-light",
-            }}
-          >
-            {isAuthenticated && (
-              <div className="flex h-full px-2 sm:px-4 py-1">
-                <img src={RewardWheel} alt="RewardWheel" className="w-8 h-8 sm:w-auto sm:h-auto" />
+    <header className="flex items-center justify-between w-full px-8 md:px-16 py-6">
+      {/* Logo */}
+      <Link to="/" className="flex items-center">
+        <DotGridLogo />
+      </Link>
 
-                <div className="self-end mx-1 sm:mx-2 text-sm sm:text-xl text-white">
-                  Bright Mba
-                </div>
-                <div className="px-1 text-xs text-white bg-[#5856D6] rounded-full h-fit">
-                  Beginner
-                </div>
-              </div>
-            )}
-            <div className="w-full h-1 rounded-full bg-neutral-200 dark:bg-neutral-600">
-              <div
-                className="h-1 bg-[#FF073A] rounded-full "
-                style={{ width: "45%" }}
-              ></div>
-            </div>
-          </div>
-          {isAuthenticated && (
-            <div className="hidden sm:flex items-center justify-end px-2 py-1 ml-4 sm:ml-8 lg:ml-40 bg-white rounded-lg h-fit">
-              <img src={RewardWheel} alt="RewardWheel" className="w-8 h-8 sm:w-10 sm:h-10" />
-              <div className="flex flex-col w-full text-xs">
-                <div>Next Roll:</div>
-                <div>8h 13m 22s</div>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center self-center justify-self-center order-1 sm:order-2">
-          <a className="w-full h-full" href="/">
-            <img
-              src={LumangiLogo}
-              alt="logo"
-              className="max-w-full ml-0 sm:ml-4 w-40 sm:w-48 md:w-60"
-            />
-          </a>
-        </div>
-        <div className="flex self-center justify-center sm:justify-end space-x-2 sm:space-x-4 justify-self-end order-3 w-full sm:w-auto">
-          {!isAuthenticated && (
-            <Button
-              color="default"
-              onClick={handleLogin}
-              label="Register/Login"
-              customStyle="!text-white border-white border border-opacity-50 text-sm sm:text-base"
-              title="Coming Soon!!"
-            />
-          )}
-          <Button
-            onClick={() => setIsAuthModalOpen(true)}
-            label={!!account ? account : "Connect Wallet"}
-            color="dangerText"
-            disabled={!!account}
-            customStyle="w-32 sm:w-40 text-ellipsis overflow-hidden whitespace-nowrap text-sm sm:text-base"
-            title={account ? account : ""}
-          />
-          <ConnectWallet
-            isModalOpen={isAuthModalOpen}
-            setIsModalOpen={setIsAuthModalOpen}
-            setSelectedWallet={setSelectedWallet}
-          />
-        </div>
+      {/* Nav tabs - center (optional, shown on larger screens) */}
+      <nav className="hidden lg:flex items-center gap-2">
+        {[
+          { label: "Swap", path: "/swap" },
+          { label: "Liquidity", path: "/liquidity" },
+          { label: "Overview", path: "/overview" },
+          { label: "NFTs", path: "/nft" },
+          { label: "Blog", path: "/blog" },
+          { label: "Coins", path: "/coins" },
+        ].map(({ label, path }) => {
+          const active = location.pathname === path;
+          return (
+            <Link
+              key={path}
+              to={path}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                active
+                  ? "bg-[#1e1e7a] text-white border border-white/20"
+                  : "text-white/70 hover:text-white"
+              }`}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Right buttons */}
+      <div className="flex items-center gap-3">
+        <Link
+          to="/swap"
+          className="px-5 py-2 rounded-full border border-white/30 bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-all"
+        >
+          Buy &amp; Sell
+        </Link>
+        <button
+          onClick={() => setIsAuthModalOpen(true)}
+          disabled={!!account}
+          className="px-5 py-2 rounded-full text-sm font-medium text-[#e84141] border border-[#e84141]/40 hover:bg-[#e84141]/10 transition-all disabled:opacity-80"
+        >
+          {account ? truncate(account) : "Connect Wallet"}
+        </button>
       </div>
-    </>
+
+      <ConnectWallet
+        isModalOpen={isAuthModalOpen}
+        setIsModalOpen={setIsAuthModalOpen}
+        setSelectedWallet={setSelectedWallet}
+      />
+    </header>
   );
 }
 

@@ -95,9 +95,9 @@ const WinnerCardComponent = ({
                 width="135.975"
                 height="177.711"
                 filterUnits="userSpaceOnUse"
-                color-interpolation-filters="sRGB"
+                colorInterpolationFilters="sRGB"
               >
-                <feFlood flood-opacity="0" result="BackgroundImageFix" />
+                <feFlood floodOpacity={0} result="BackgroundImageFix" />
                 <feColorMatrix
                   in="SourceAlpha"
                   type="matrix"
@@ -131,8 +131,8 @@ const WinnerCardComponent = ({
                 y2="103.158"
                 gradientUnits="userSpaceOnUse"
               >
-                <stop stop-color="#9CA1A3" />
-                <stop offset="1" stop-color="#9CA1A3" stop-opacity="0" />
+                <stop stopColor="#9CA1A3" />
+                <stop offset="1" stopColor="#9CA1A3" stopOpacity={0} />
               </linearGradient>
               <linearGradient
                 id="paint1_linear_1642_15512"
@@ -142,9 +142,9 @@ const WinnerCardComponent = ({
                 y2="85.3349"
                 gradientUnits="userSpaceOnUse"
               >
-                <stop stop-color="#F1F5F5" />
-                <stop offset="0.0001" stop-color="white" />
-                <stop offset="1" stop-color="#F1F5F5" />
+                <stop stopColor="#F1F5F5" />
+                <stop offset="0.0001" stopColor="white" />
+                <stop offset="1" stopColor="#F1F5F5" />
               </linearGradient>
             </defs>
           </svg>
