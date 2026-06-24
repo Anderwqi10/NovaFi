@@ -6,3 +6,6 @@ yarn.lock
 *.log
 build
 google.json
+backend/.env
+*.env
+!*.example.env

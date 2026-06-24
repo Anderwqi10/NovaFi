@@ -15,7 +15,7 @@ export function Header() {
   const { account } = useWeb3React();
   const location = useLocation();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [selectedWallet, setSelectedWallet] = useState<
+  const [, setSelectedWallet] = useState<
     "MetaMask" | "WalletConnect" | "Coinbase" | null
   >(null);
 

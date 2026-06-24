@@ -1,248 +1,306 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  pgGetBlogPosts,
+  pgLogin,
+  pgRegister,
+  saveSession,
+  clearSession,
+  getStoredUser,
+  BlogPost,
+  PgUser,
+} from "../services/pg.api.service";
 
 const sidebarCategories = [
-  { icon: "🆕", title: "Newest and Recent", sub: "Find the latest update" },
-  { icon: "🔥", title: "Popular of the day", sub: "Shots featured today by curators" },
-  { icon: "👥", title: "Following", count: 24, sub: "Explore from your favorite person" },
-];
-
-const popularTags = [
-  { tag: "#javascript", count: "82,645 Posted by this tag" },
-  { tag: "#bitcoin", count: "65,523 Posted • Trending" },
-  { tag: "#design", count: "51,354 • Trending in Bangladesh" },
-  { tag: "#innovation", count: "48,029 Posted by this tag" },
-];
-
-const pinnedGroups = [
-  { tag: "#bitcoin", count: "69,523 Posted • Trending" },
-  { tag: "#blogging", count: "48,029 Posted by this tag" },
-  { tag: "#tutorial", count: "51,354 • Trending in Bangladesh" },
-];
-
-const posts = [
-  {
-    id: 1,
-    title: "Blockchain developer best practices on innovationchain",
-    tags: ["finance", "bitcoin", "crypto"],
-    author: "Pavel Gvay",
-    time: "3 weeks ago",
-    views: "651,324 Views",
-    likes: "36,654 Likes",
-    comments: "56 comments",
-    coin: "BTC",
-    coinSymbol: "Bitcoin",
-    coinPrice: "$20,788",
-    coinChange: "+0.25%",
-    liked: false,
-    chartColor: "#5b9cf6",
-  },
-  {
-    id: 2,
-    title: "The 4-step SEO framework that led to a 1000% increase in traffic. Let's talk about blogging and SEO...",
-    tags: ["seo", "blogging", "traffic"],
-    author: "AR Jakir",
-    time: "3 days ago",
-    views: "244,564 Views",
-    likes: "10,920 Likes",
-    comments: "184 comments",
-    coin: "ETH",
-    coinSymbol: "Ethereum",
-    coinPrice: "$1,890",
-    coinChange: "+1.2%",
-    liked: true,
-    chartColor: "#f7931a",
-  },
+  { icon: "🆕", label: "Todos", value: "" },
+  { icon: "📈", label: "Mercado", value: "Mercado" },
+  { icon: "⚙️", label: "Tecnología", value: "Tecnología" },
+  { icon: "🏦", label: "DeFi", value: "DeFi" },
+  { icon: "🖼️", label: "NFT", value: "NFT" },
+  { icon: "📚", label: "Educación", value: "Educación" },
 ];
 
 const meetups = [
-  { month: "FEB", day: "7", title: "UIHUT - Crunchbase Company Profile...", tags: ["Remote", "Part-time", "Worldwide"] },
-  { month: "FEB", day: "3", title: "Design Meetups USA | Dribbble", tags: ["Remote", "Part-time"] },
-  { month: "FEB", day: "5", title: "Meetup Brand Identity Design - Beha...", tags: ["Full Time", "Contract", "Worldwide"] },
+  { month: "JUL", day: "12", title: "DeFi Summit 2026 – Buenos Aires", tags: ["Presencial", "Gratis"] },
+  { month: "JUL", day: "18", title: "Blockchain Dev Meetup Online", tags: ["Remote", "Gratis"] },
+  { month: "AGO", day: "3", title: "NFT & Web3 Expo – Medellín", tags: ["Presencial", "Pago"] },
 ];
 
 const podcasts = [
-  "Selling a Business and Scaling Another Amidst Tragedy.",
-  "Mental health as a founder and the importance of community...",
-  "Growing to $8.5k MRR in 1 year - Marie Martens, Tally.so",
-  "Mental Health and Bootstrapping in 2022 with Rob Walling of TinySe",
-  "Money, Happiness, and Productivity as a Solo Founder with Pieter Levels",
-  "Mental health as a founder and the importance of community",
+  "Bitcoin: El futuro del dinero con Nic Carter",
+  "DeFi explicado para principiantes – Bankless",
+  "Ethereum Layer 2: Todo lo que necesitas saber",
+  "Cómo sobrevivir al bear market – La Crypto Mente",
+  "NFTs y la nueva economía digital – Metaverso Hoy",
+  "Seguridad en cripto: Protege tus activos – CryptoSec",
 ];
 
 const avatarColors = ["#e84141", "#f7931a", "#00d4b5", "#5b9cf6", "#a855f7"];
 
-const MiniChart = ({ color }: { color: string }) => {
-  const points = [40, 35, 45, 30, 50, 25, 42];
-  const w = 80, h = 40;
-  const max = Math.max(...points), min = Math.min(...points);
-  const xs = points.map((_, i) => (i / (points.length - 1)) * w);
-  const ys = points.map((p) => h - ((p - min) / (max - min)) * h);
-  const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x},${ys[i]}`).join(" ");
-  return (
-    <svg width={w} height={h}>
-      <path d={d} fill="none" stroke={color} strokeWidth="2" />
-    </svg>
-  );
+const timeAgo = (dateStr: string) => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return "hoy";
+  if (days === 1) return "ayer";
+  if (days < 7) return `hace ${days} días`;
+  if (days < 30) return `hace ${Math.floor(days / 7)} semanas`;
+  return `hace ${Math.floor(days / 30)} meses`;
 };
 
+function AuthModal({ onClose, onAuth }: { onClose: () => void; onAuth: (user: PgUser) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = mode === "login"
+        ? await pgLogin(email, password)
+        : await pgRegister(email, password, username);
+      if (res.success) {
+        saveSession(res.data.token, res.data.user);
+        onAuth(res.data.user);
+        onClose();
+      } else {
+        setError(res.msg || "Error desconocido");
+      }
+    } catch {
+      setError("Error de conexión con el servidor");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#0d0d3b] border border-white/10 rounded-2xl p-8 w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-white font-bold text-xl">
+            {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+          </h2>
+          <button onClick={onClose} className="text-white/40 hover:text-white text-xl">✕</button>
+        </div>
+        <div className="flex gap-2 mb-6">
+          {(["login", "register"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`flex-1 py-2 rounded-full text-sm font-semibold transition-all ${
+                mode === m ? "bg-[#1e1e7a] text-white border border-white/20" : "text-white/50 hover:text-white"
+              }`}
+            >
+              {m === "login" ? "Entrar" : "Registrarse"}
+            </button>
+          ))}
+        </div>
+        <form onSubmit={submit} className="flex flex-col gap-3">
+          {mode === "register" && (
+            <input
+              type="text"
+              placeholder="Nombre de usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder-white/30 focus:border-white/30"
+            />
+          )}
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder-white/30 focus:border-white/30"
+          />
+          <input
+            type="password"
+            placeholder="Contraseña (mín. 6 caracteres)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none placeholder-white/30 focus:border-white/30"
+          />
+          {error && <p className="text-red-400 text-xs">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-2 py-3 rounded-xl bg-[#e84141] text-white font-semibold text-sm hover:bg-[#c83030] transition-all disabled:opacity-50"
+          >
+            {loading ? "Cargando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function BlogView() {
-  const [searchText, setSearchText] = useState("");
-  const [activeCategory, setActiveCategory] = useState(0);
+  const [activeCategory, setActiveCategory] = useState("");
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<PgUser | null>(getStoredUser());
+  const [showAuth, setShowAuth] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    pgGetBlogPosts(10, 0)
+      .then((res) => {
+        if (res.success) setPosts(res.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = activeCategory
+    ? posts.filter((p) => p.category === activeCategory)
+    : posts;
+
+  const handleLogout = () => {
+    clearSession();
+    setUser(null);
+  };
 
   return (
     <div className="w-full px-8 md:px-16 py-4">
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} onAuth={(u) => setUser(u)} />
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-[240px_1fr_240px] gap-6">
         {/* Left Sidebar */}
         <div className="flex flex-col gap-5">
+          {/* User card */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            {user ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#e84141] flex items-center justify-center text-white font-bold text-sm">
+                    {user.username?.[0]?.toUpperCase() ?? "U"}
+                  </div>
+                  <div>
+                    <div className="text-white text-sm font-semibold">{user.username}</div>
+                    <div className="text-white/40 text-xs">{user.email}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-white/40 hover:text-white text-xs text-left transition-colors"
+                >
+                  Cerrar sesión →
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="text-white text-sm font-semibold mb-1">Tu cuenta</div>
+                <p className="text-white/40 text-xs">Inicia sesión para guardar favoritos y crear posts.</p>
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="mt-2 py-2 rounded-xl bg-[#1e1e7a] text-white text-sm font-semibold border border-white/20 hover:bg-[#2a2a9e] transition-all"
+                >
+                  Entrar / Registrarse
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Categories */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col gap-2">
-            {sidebarCategories.map((c, i) => (
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col gap-1">
+            <div className="text-white font-bold text-sm mb-2">Categorías</div>
+            {sidebarCategories.map((c) => (
               <button
-                key={i}
-                onClick={() => setActiveCategory(i)}
-                className={`flex items-start gap-3 p-2 rounded-xl text-left transition-all ${
-                  activeCategory === i ? "bg-white/10" : "hover:bg-white/5"
+                key={c.value}
+                onClick={() => setActiveCategory(c.value)}
+                className={`flex items-center gap-2 p-2 rounded-xl text-left text-sm transition-all ${
+                  activeCategory === c.value ? "bg-white/10 text-white" : "text-white/50 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <span className="text-lg">{c.icon}</span>
-                <div>
-                  <div className="text-white text-xs font-semibold">
-                    {c.title}
-                    {c.count && (
-                      <span className="ml-1 bg-[#1e1e7a] text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        {c.count}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-white/40 text-xs">{c.sub}</div>
-                </div>
+                <span>{c.icon}</span>
+                <span>{c.label}</span>
               </button>
-            ))}
-          </div>
-
-          {/* Popular Tags */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-white font-bold text-sm mb-3">Popular Tags</div>
-            {popularTags.map((t, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded flex items-center justify-center bg-white/10 text-xs">
-                  {["&lt;/&gt;", "₿", "✏️", "💡"][i]}
-                </div>
-                <div>
-                  <div className="text-white text-xs font-medium">{t.tag}</div>
-                  <div className="text-white/40 text-[10px]">{t.count}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pinned Group */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-white font-bold text-sm">Pinned Group</span>
-              <span className="text-[#e84141] text-xs">→</span>
-            </div>
-            {pinnedGroups.map((g, i) => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <div
-                  className="w-6 h-6 rounded flex items-center justify-center text-white text-[10px] font-bold"
-                  style={{ background: avatarColors[i % avatarColors.length] }}
-                >
-                  #
-                </div>
-                <div>
-                  <div className="text-white text-xs font-medium">{g.tag}</div>
-                  <div className="text-white/40 text-[10px]">{g.count}</div>
-                </div>
-              </div>
             ))}
           </div>
         </div>
 
         {/* Center Feed */}
         <div className="flex flex-col gap-4">
-          {/* Create Post */}
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold"
-              style={{ background: "#e84141" }}
-            >
-              U
-            </div>
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Let's share what going on your mind..."
-              className="flex-1 bg-transparent text-white/50 outline-none text-sm placeholder-white/30"
-            />
-            <button className="bg-[#1e1e7a] text-white text-sm font-semibold px-5 py-2 rounded-xl border border-white/20 hover:bg-[#2a2a9e] transition-all whitespace-nowrap">
-              Create Post
-            </button>
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-white font-bold text-lg">
+              {activeCategory || "Todos los posts"}
+            </h2>
+            <span className="text-white/30 text-xs">{filtered.length} artículos</span>
           </div>
 
-          {/* Posts */}
-          {posts.map((post) => (
-            <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex gap-4">
-                {/* Coin thumbnail */}
-                <div className="flex-shrink-0 w-36 rounded-xl overflow-hidden bg-white/5 border border-white/10 p-3">
-                  <div className="flex items-center gap-1 mb-2">
-                    <span className="text-white/60 text-xs font-bold">{post.coin}</span>
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex gap-4">
+                  <div className="w-28 h-24 rounded-xl bg-white/10 animate-pulse flex-shrink-0" />
+                  <div className="flex-1 flex flex-col gap-3">
+                    <div className="h-5 w-3/4 bg-white/10 animate-pulse rounded" />
+                    <div className="h-3 w-1/2 bg-white/10 animate-pulse rounded" />
+                    <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
+                    <div className="h-3 w-4/5 bg-white/10 animate-pulse rounded" />
                   </div>
-                  <div className="text-white/40 text-[10px] mb-2">{post.coinSymbol}</div>
-                  <MiniChart color={post.chartColor} />
-                  <div className="text-white font-bold text-sm mt-2">{post.coinPrice}</div>
-                  <div className="text-green-400 text-xs">{post.coinChange}</div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="text-white font-semibold text-base leading-snug mb-2">
-                    {post.title}
-                  </div>
-                  <div className="flex gap-2 mb-3 flex-wrap">
-                    {post.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="bg-white/10 text-white/70 text-xs px-3 py-1 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                      style={{ background: avatarColors[post.id % avatarColors.length] }}
-                    >
-                      {post.author[0]}
-                    </div>
-                    <div>
-                      <span className="text-white text-xs font-medium">{post.author}</span>
-                      <span className="text-white/30 text-xs ml-1">•</span>
-                      <span className="text-white/40 text-xs ml-1">{post.time}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-6 text-white/40 text-xs">
-                    <span>{post.views}</span>
-                    <span>{post.likes}</span>
-                    <span>{post.comments}</span>
-                  </div>
-                </div>
-
-                {/* Like button */}
-                <div className="flex-shrink-0">
-                  <button
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                      post.liked ? "bg-[#e84141] text-white" : "bg-white/10 text-white/40 hover:text-white"
-                    }`}
-                  >
-                    ♥
-                  </button>
                 </div>
               </div>
+            ))
+          ) : filtered.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/40">
+              No hay posts en esta categoría todavía.
             </div>
-          ))}
+          ) : (
+            filtered.map((post) => (
+              <div key={post.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 hover:bg-white/10 transition-all">
+                <div className="flex gap-4">
+                  {post.image_url && (
+                    <div className="flex-shrink-0 w-28 h-24 rounded-xl overflow-hidden bg-white/5">
+                      <img
+                        src={post.image_url}
+                        alt={post.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-white/10 text-white/60 text-[10px] px-2 py-0.5 rounded-full">
+                        {post.category}
+                      </span>
+                    </div>
+                    <div className="text-white font-semibold text-sm leading-snug mb-2">
+                      {post.title}
+                    </div>
+                    <p className="text-white/40 text-xs leading-5 line-clamp-2 mb-3">
+                      {post.content}
+                    </p>
+                    <div className="flex gap-2 mb-3 flex-wrap">
+                      {(post.tags || []).map((tag) => (
+                        <span key={tag} className="bg-white/10 text-white/60 text-[10px] px-2 py-0.5 rounded-full">
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                        style={{ background: avatarColors[post.id % avatarColors.length] }}
+                      >
+                        {post.author[0]}
+                      </div>
+                      <span className="text-white text-xs font-medium">{post.author}</span>
+                      <span className="text-white/30 text-xs">·</span>
+                      <span className="text-white/40 text-xs">{timeAgo(post.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Right Sidebar */}
@@ -250,12 +308,12 @@ export default function BlogView() {
           {/* Meetups */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-white font-bold text-sm">Meetups</span>
+              <span className="text-white font-bold text-sm">Eventos</span>
               <span className="text-[#e84141] text-xs">→</span>
             </div>
             {meetups.map((m, i) => (
               <div key={i} className="flex gap-3 mb-3">
-                <div className="text-center">
+                <div className="text-center min-w-[28px]">
                   <div className="text-white/40 text-[10px] uppercase">{m.month}</div>
                   <div className="text-white font-bold text-sm">{m.day}</div>
                 </div>

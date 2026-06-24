@@ -15,7 +15,7 @@ var iterations = 100;
 const {
     routes
 } = require('./routes/routes');
-const { Console } = require('console');
+const pgRoutes = require('./routes/pg.routes');
 // const Connection = require('mysql2/typings/mysql/lib/Connection');
 
 const app = express();
@@ -43,10 +43,7 @@ const promisePool = pool.promise();
  
 // Load config
 const stage = process.env.NODE_ENV || 'production';
-const env = dotenv.config({
-    path: `${stage}.env`
-});
-assert.equal(null, env.error);
+dotenv.config({ path: `${stage}.env` });
 app.set('env', stage);
 
 app.use(express.urlencoded({ extended: false }));
@@ -94,7 +91,8 @@ app.get("/", function (req, res) {
     res.send("node is running")
 })
 
- app.use('/api/', routes)
+ app.use('/api/', routes);
+ app.use('/api/pg', pgRoutes);
 
 
  io.on('connection', socket => {

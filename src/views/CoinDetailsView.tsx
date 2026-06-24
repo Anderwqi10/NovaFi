@@ -1,9 +1,15 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLiveData } from "../hooks/useLiveData";
 import { fetchCoinDetail, fetchCoinChart } from "../services/coingecko.service";
+import {
+  pgGetFavorites,
+  pgAddFavorite,
+  pgRemoveFavorite,
+  getStoredUser,
+} from "../services/pg.api.service";
 
 const coins = [
   { id: "bitcoin", label: "Bitcoin", symbol: "BTC", icon: "₿", color: "#f7931a" },
@@ -35,6 +41,37 @@ const Spinner = () => (
 export default function CoinDetailsView() {
   const [activeCoin, setActiveCoin] = useState(coins[1]);
   const [activeTime, setActiveTime] = useState(timeOptions[0]);
+  const [favIds, setFavIds] = useState<Set<string>>(new Set());
+  const [favLoading, setFavLoading] = useState(false);
+  const isLoggedIn = !!getStoredUser();
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    pgGetFavorites().then((res) => {
+      if (res.success) setFavIds(new Set(res.data.map((f) => f.coin_id)));
+    }).catch(() => {});
+  }, [isLoggedIn]);
+
+  const toggleFavorite = async () => {
+    if (!isLoggedIn) {
+      alert("Inicia sesión desde el Blog para guardar favoritos.");
+      return;
+    }
+    setFavLoading(true);
+    try {
+      if (favIds.has(activeCoin.id)) {
+        await pgRemoveFavorite(activeCoin.id);
+        setFavIds((prev) => { const s = new Set(prev); s.delete(activeCoin.id); return s; });
+      } else {
+        await pgAddFavorite(activeCoin.id, activeCoin.label, activeCoin.symbol);
+        setFavIds((prev) => new Set([...prev, activeCoin.id]));
+      }
+    } catch {
+      alert("Error al actualizar favoritos");
+    } finally {
+      setFavLoading(false);
+    }
+  };
 
   const detailFetcher = useCallback(
     () => fetchCoinDetail(activeCoin.id),
@@ -60,7 +97,20 @@ export default function CoinDetailsView() {
       {/* Header row */}
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
         <h1 className="text-white text-3xl font-bold">Detalles de Moneda</h1>
-        <div className="flex gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
+          <button
+            onClick={toggleFavorite}
+            disabled={favLoading}
+            title={favIds.has(activeCoin.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+              favIds.has(activeCoin.id)
+                ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"
+                : "bg-white/5 border-white/10 text-white/40 hover:text-white"
+            } disabled:opacity-50`}
+          >
+            <span>{favIds.has(activeCoin.id) ? "★" : "☆"}</span>
+            <span className="text-xs">{favIds.has(activeCoin.id) ? "Favorito" : "Favoritos"}</span>
+          </button>
           {coins.map((c) => (
             <button
               key={c.id}

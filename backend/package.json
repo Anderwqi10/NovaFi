@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "start": "node ./app.js"
+    "start": "node ./app.js",
+    "db:init": "node ./db/init.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.10",
     "axios": "^1.7.7",
+    "bcryptjs": "^3.0.3",
     "bip39": "^3.1.0",
     "bitcoin-address-validation": "^2.2.1",
     "bitcoinjs-lib": "^6.1.5",
@@ -38,6 +40,7 @@
     "node-fetch": "^2.7.0",
     "nodejs-base64": "^2.0.0",
     "nodemailer": "^6.9.15",
+    "pg": "^8.22.0",
     "probe-image-size": "^7.2.3",
     "qrcode": "^1.5.4",
     "referral-code-generator": "^1.0.8",

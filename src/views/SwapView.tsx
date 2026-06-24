@@ -41,8 +41,6 @@ export default function SwapView() {
   const change24h = bnb?.price_change_percentage_24h ?? 0;
   const positive = change24h >= 0;
 
-  const latestTime = chartData?.[chartData.length - 1]?.time ?? "";
-
   return (
     <div className="w-full px-8 md:px-16 py-4">
       {/* Tabs */}
