@@ -4,177 +4,159 @@
 
 # LMNG 2026
 
-Plataforma DeFi de trading, staking y predicción descentralizada. Incluye datos de criptomonedas en tiempo real, swap de tokens, NFTs y blog integrado con base de datos PostgreSQL.
+Decentralized DeFi trading, staking and prediction platform. Includes real-time cryptocurrency data, token swap, NFTs and a blog backed by a SQLite database.
 
 ---
 
-## Stack tecnológico
+## Tech Stack
 
-| Capa | Tecnología |
+| Layer | Technology |
 |---|---|
 | Frontend | React 18 + TypeScript + Tailwind CSS |
 | Backend | Node.js + Express |
-| Base de datos | PostgreSQL |
-| Datos crypto | CoinGecko API (tiempo real, sin API key) |
+| Database | SQLite (local file, no installation required) |
+| Crypto data | CoinGecko API (real-time, no API key needed) |
 | Wallets | Web3-React v8 (MetaMask, WalletConnect, Coinbase) |
 | Auth | JWT + bcryptjs |
-| Gráficos | Recharts |
+| Charts | Recharts |
 
 ---
 
-## Requisitos previos
+## Prerequisites
 
-- Node.js v20 o superior
-- npm
-- PostgreSQL instalado y corriendo
+- **Node.js v20** or higher → [nodejs.org](https://nodejs.org)
+- **npm** (bundled with Node.js)
+- **Git** → [git-scm.com](https://git-scm.com)
+
+No database installation required. SQLite is included as an npm dependency and the data file is created automatically the first time you run the project.
 
 ---
 
-## Instalación
+## Installation
 
 ```bash
-# 1. Instalar dependencias del frontend
+# 1. Clone the repository
+git clone git@github.com:Anderwqi10/imgblockchain.git
+cd imgblockchain
+
+# 2. Install frontend dependencies
 npm install
 
-# 2. Instalar dependencias del backend
+# 3. Install backend dependencies
 cd backend && npm install && cd ..
+
+# 4. Create the environment file
+cp backend/.env.example backend/.env
 ```
+
+That's it. The database is created automatically the first time you run the project.
 
 ---
 
-## Configuración
-
-El backend usa un archivo `.env` que **no se sube a GitHub**. Ya está creado en `backend/.env` con los valores por defecto:
-
-```
-JWT_SECRET=...
-PG_HOST=localhost
-PG_PORT=5432
-PG_USER=postgres
-PG_PASSWORD=postgres
-PG_DATABASE=lmng2026
-```
-
-Edita `backend/.env` si tu PostgreSQL tiene usuario/contraseña diferentes.
-
----
-
-## Inicializar la base de datos
-
-Solo hace falta hacerlo una vez:
+## Running the project
 
 ```bash
-# Crear la base de datos
-sudo -u postgres psql -c "CREATE DATABASE lmng2026;"
-
-# Crear las tablas e insertar datos de ejemplo
-cd backend && npm run db:init && cd ..
-```
-
-Esto crea 4 tablas: `users`, `transactions`, `favorites`, `blog_posts` — e inserta 6 posts de blog de muestra.
-
----
-
-## Correr el proyecto
-
-```bash
-# Frontend + Backend juntos
 npm start
-
-# Solo frontend (puerto 2588)
-npm run client
-
-# Solo backend (puerto 1357)
-npm run server
 ```
 
-| Servicio | URL |
-|---|---|
-| Frontend | http://localhost:2588 |
-| Backend API | http://localhost:1357 |
+Open **http://localhost:2588** in your browser.
+
+The backend starts on http://localhost:1357 and the SQLite database (`backend/database.sqlite`) is initialized automatically with sample data.
 
 ---
 
-## Bajar el proyecto
+## Stopping the project
 
 ```bash
-# Ctrl+C en la terminal donde corre
+# Ctrl+C in the terminal where it's running
 
-# O matar los procesos por puerto
+# Or manually free the ports:
 kill $(lsof -t -i:2588)   # frontend
 kill $(lsof -t -i:1357)   # backend
 ```
 
 ---
 
-## Vistas del frontend
+## Available commands
 
-| Ruta | Vista |
-|---|---|
-| `/swap` | Swap de tokens con gráfico BNB en tiempo real |
-| `/overview` | Mercado global + top 10 monedas con sparklines |
-| `/coins` | Detalles de BTC/ETH/XMR/LTC con historial de precios |
-| `/nft` | Galería de NFTs |
-| `/blog` | Blog con posts de la BD + login/registro |
-| `/prediction` | Dashboard de predicción (vista original) |
+```bash
+npm start          # Frontend + Backend together
+npm run client     # Frontend only (port 2588)
+npm run server     # Backend only (port 1357)
+```
 
 ---
 
-## API endpoints (PostgreSQL)
+## Frontend views
 
-Todos bajo `/api/pg/...`
+| Route | View |
+|---|---|
+| `/swap` | Token swap with real-time BNB chart |
+| `/overview` | Global market + top 10 coins with sparklines |
+| `/coins` | BTC/ETH/XMR/LTC details + favorites |
+| `/nft` | NFT gallery |
+| `/blog` | Blog with database posts + login/register |
+| `/prediction` | Prediction dashboard |
+
+---
+
+## API endpoints
+
+All under `/api/pg/...`
 
 ### Auth
 ```
 POST /api/pg/auth/register    { email, password, username }
 POST /api/pg/auth/login       { email, password }
-GET  /api/pg/auth/me          [requiere token]
+GET  /api/pg/auth/me          [requires token]
 ```
 
-### Transacciones
+### Transactions
 ```
-GET  /api/pg/transactions     [requiere token]
+GET  /api/pg/transactions     [requires token]
 POST /api/pg/transactions     { type, coin_id, coin_symbol, amount_usd, amount_coin }
 ```
 
-### Favoritos
+### Favorites
 ```
-GET    /api/pg/favorites           [requiere token]
+GET    /api/pg/favorites           [requires token]
 POST   /api/pg/favorites           { coin_id, coin_name, coin_symbol }
-DELETE /api/pg/favorites/:coinId   [requiere token]
+DELETE /api/pg/favorites/:coinId   [requires token]
 ```
 
 ### Blog
 ```
-GET /api/pg/blog         ?limit=10&offset=0&category=DeFi
+GET /api/pg/blog        ?limit=10&offset=0&category=DeFi
 GET /api/pg/blog/:id
 ```
 
 ---
 
-## Estructura del proyecto
+## Project structure
 
 ```
 lmng2026/
 ├── src/
-│   ├── views/          # Vistas principales (Swap, Overview, Coins, NFT, Blog)
-│   ├── components/     # Header, Footer, Router, ConnectWallet...
-│   ├── hooks/          # useLiveData, useAuth, useContract...
-│   └── services/       # coingecko.service.ts, pg.api.service.ts
+│   ├── views/        # Swap, Overview, Coins, NFT, Blog
+│   ├── components/   # Header, Footer, Router, ConnectWallet
+│   ├── hooks/        # useLiveData, useAuth, useContract
+│   └── services/     # coingecko.service.ts, pg.api.service.ts
 ├── backend/
-│   ├── app.js          # Entrada del servidor Express
-│   ├── db/             # Conexión PostgreSQL + schema.sql + init.js
-│   ├── controllers/    # auth, transactions, favorites, blog (PG) + legacy
-│   ├── middleware/      # JWT auth (PG) + legacy
-│   └── routes/         # pg.routes.js + rutas legacy
+│   ├── app.js           # Server entry point
+│   ├── database.sqlite  # Data file (auto-created)
+│   ├── db/              # SQLite connection + schema + init
+│   ├── controllers/     # auth, transactions, favorites, blog
+│   ├── middleware/      # JWT auth
+│   └── routes/          # pg.routes.js + legacy routes
 └── public/
 ```
 
 ---
 
-## Notas de seguridad
+## Security notes
 
-- `backend/.env` está en `.gitignore` — nunca se sube al repositorio
-- Las contraseñas se hashean con bcrypt (12 rounds)
-- JWT tiene expiración de 7 días
-- Las rutas protegidas requieren `Authorization: Bearer <token>`
+- `backend/.env` is in `.gitignore` — never pushed to the repository
+- `backend/database.sqlite` is in `.gitignore` — data stays local
+- Passwords are hashed with bcrypt (12 rounds)
+- JWT expires in 7 days
+- Protected routes require `Authorization: Bearer <token>`

@@ -1,4 +1,19 @@
 const BASE = "https://api.coingecko.com/api/v3";
+const TTL = 30_000; // cache válido 30 segundos
+
+interface CacheEntry { data: unknown; ts: number }
+const cache = new Map<string, CacheEntry>();
+
+async function cachedFetch<T>(url: string): Promise<T> {
+  const hit = cache.get(url);
+  if (hit && Date.now() - hit.ts < TTL) return hit.data as T;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`CoinGecko error ${res.status}: ${url}`);
+  const data = await res.json();
+  cache.set(url, { data, ts: Date.now() });
+  return data as T;
+}
 
 export interface CoinMarket {
   id: string;
@@ -21,17 +36,13 @@ export interface GlobalData {
 export interface ChartPoint { time: string; price: number }
 
 export async function fetchTopCoins(limit = 10): Promise<CoinMarket[]> {
-  const res = await fetch(
+  return cachedFetch(
     `${BASE}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${limit}&page=1&sparkline=true`
   );
-  if (!res.ok) throw new Error("CoinGecko markets error");
-  return res.json();
 }
 
 export async function fetchGlobal(): Promise<GlobalData> {
-  const res = await fetch(`${BASE}/global`);
-  if (!res.ok) throw new Error("CoinGecko global error");
-  const json = await res.json();
+  const json = await cachedFetch<{ data: GlobalData }>(`${BASE}/global`);
   return json.data;
 }
 
@@ -39,21 +50,27 @@ export async function fetchCoinChart(
   coinId: string,
   days: number | string = 1
 ): Promise<ChartPoint[]> {
-  const res = await fetch(
-    `${BASE}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`
-  );
-  if (!res.ok) throw new Error("CoinGecko chart error");
-  const json = await res.json();
-  return (json.prices as [number, number][]).map(([ts, price]) => ({
+  const url = `${BASE}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`;
+  const json = await cachedFetch<{ prices: [number, number][] }>(url);
+  return json.prices.map(([ts, price]) => ({
     time: new Date(ts).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }),
     price: parseFloat(price.toFixed(4)),
   }));
 }
 
-export async function fetchCoinDetail(coinId: string) {
-  const res = await fetch(
+export interface CoinDetail {
+  image: { small: string; large: string };
+  description: { en: string };
+  market_data: {
+    current_price: { usd: number };
+    price_change_percentage_24h: number;
+    total_volume: { usd: number };
+    market_cap: { usd: number };
+  };
+}
+
+export async function fetchCoinDetail(coinId: string): Promise<CoinDetail> {
+  return cachedFetch<CoinDetail>(
     `${BASE}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`
   );
-  if (!res.ok) throw new Error("CoinGecko detail error");
-  return res.json();
 }

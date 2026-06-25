@@ -16,6 +16,8 @@ const {
     routes
 } = require('./routes/routes');
 const pgRoutes = require('./routes/pg.routes');
+const { initDb } = require('./db/init');
+initDb();
 // const Connection = require('mysql2/typings/mysql/lib/Connection');
 
 const app = express();
@@ -91,8 +93,8 @@ app.get("/", function (req, res) {
     res.send("node is running")
 })
 
- app.use('/api/', routes);
  app.use('/api/pg', pgRoutes);
+ app.use('/api/', routes);
 
 
  io.on('connection', socket => {

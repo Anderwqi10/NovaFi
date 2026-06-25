@@ -10,6 +10,7 @@
     "adm-zip": "^0.5.10",
     "axios": "^1.7.7",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.11.1",
     "bip39": "^3.1.0",
     "bitcoin-address-validation": "^2.2.1",
     "bitcoinjs-lib": "^6.1.5",

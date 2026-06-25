@@ -64,7 +64,7 @@ export default function CoinDetailsView() {
         setFavIds((prev) => { const s = new Set(prev); s.delete(activeCoin.id); return s; });
       } else {
         await pgAddFavorite(activeCoin.id, activeCoin.label, activeCoin.symbol);
-        setFavIds((prev) => new Set([...prev, activeCoin.id]));
+        setFavIds((prev) => new Set(Array.from(prev).concat(activeCoin.id)));
       }
     } catch {
       alert("Error al actualizar favoritos");

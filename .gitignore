@@ -9,3 +9,4 @@ google.json
 backend/.env
 *.env
 !*.example.env
+backend/database.sqlite
