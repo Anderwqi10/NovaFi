@@ -171,8 +171,8 @@ export function Footer() {
       <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start px-4 sm:px-8 md:px-12 lg:px-20 mt-20 sm:mt-32 md:mt-40 gap-8 sm:gap-0">
         <div className="flex flex-col justify-center items-center sm:items-start w-full sm:w-auto">
           <a className="flex items-center gap-3 justify-center sm:justify-start" href="/">
-            <img src="/logoNovaFy.png" alt="Novafy" className="h-10 w-auto" />
-            <span className="text-white font-bold text-xl tracking-wide">Novafy</span>
+            <img src="/logoNovaFy.png" alt="novaFi" className="h-10 w-auto" />
+            <span className="text-white font-bold text-xl tracking-wide">novaFi</span>
           </a>
           <SocialMedia />
         </div>
@@ -187,7 +187,7 @@ export function Footer() {
             className="opacity-50 hover:opacity-75 transition-opacity"
             href="/"
           >
-            © Novafy
+            © novaFi
           </a>
           <div className="flex items-center ml-0 sm:ml-2 gap-1 sm:gap-2">
             <span className="opacity-50 cursor-pointer hover:opacity-75 transition-opacity">HU</span>
