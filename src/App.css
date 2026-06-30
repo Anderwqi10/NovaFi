@@ -1,137 +1,97 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 @layer base {
-  /* Hide scrollbars globally */
   * {
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    box-sizing: border-box;
   }
-  
-  *::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
+  *::-webkit-scrollbar { display: none; }
 
   html, body {
-    overflow-x: hidden; /* Prevent horizontal scroll on body */
-    overflow-y: auto; /* Allow vertical scrolling */
-    scrollbar-width: none; /* Firefox */
-    -ms-overflow-style: none; /* IE and Edge */
+    overflow-x: hidden;
+    overflow-y: auto;
     height: 100%;
     width: 100%;
   }
 
-  html::-webkit-scrollbar,
-  body::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
-
   body {
-    font-family: Inter;
+    font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
-    position: relative;
-    overflow-y: auto;
-    overflow-x: hidden;
+    color: #e2e8f0;
   }
 
   #root {
     min-height: 100vh;
     width: 100%;
-    position: relative;
   }
 
   #dashboard {
-    background: linear-gradient(176.81deg, #414593 0%, #00022e 100.23%),
-      url("./assets/images//lumangi-cover.png");
-    background-blend-mode: hard-light;
-    background-repeat: no-repeat;
+    background:
+      radial-gradient(ellipse 90% 40% at 10% 0%, rgba(6, 182, 212, 0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 90% 40% at 90% 0%, rgba(124, 58, 237, 0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 60% 30% at 50% 100%, rgba(99, 102, 241, 0.06) 0%, transparent 60%),
+      #03030f;
     min-height: 100vh;
     width: 100%;
     position: relative;
   }
+}
 
-  .card-data::-webkit-scrollbar {
-    display: none;
+@layer components {
+  /* ── Unified Button System ── */
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all
+           bg-gradient-to-r from-cyan-500 to-violet-600
+           hover:opacity-90 hover:shadow-lg hover:shadow-cyan-500/20
+           disabled:opacity-40 disabled:cursor-not-allowed;
   }
-  .card-data {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none;
+  .btn-ghost {
+    @apply px-5 py-2.5 rounded-xl font-medium text-sm text-slate-300 transition-all
+           border border-indigo-800/50
+           hover:border-cyan-500/40 hover:text-white hover:bg-white/5;
   }
-  .flip-card {
-    background-color: transparent;
-    width: 100%;
-    perspective: 1000px;
-  }
-
-  .flip-card-inner {
-    position: relative;
-    background-color: transparent;
-
-    width: 100%;
-    height: 100%;
-    transition: transform 0.6s;
-    transform-style: preserve-3d;
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  .btn-danger {
+    @apply px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all
+           bg-gradient-to-r from-rose-500 to-pink-600
+           hover:opacity-90;
   }
 
-  .flip-card:hover .flip-card-inner {
-    /* transform: rotateY(180deg); */
+  /* ── Unified Card System ── */
+  .card {
+    @apply rounded-2xl border border-indigo-900/40 bg-[#0c0c24] backdrop-blur-sm;
+  }
+  .card-hover {
+    @apply card transition-all hover:border-cyan-500/20 hover:bg-[#0e0e2a];
   }
 
-  .flip-card-front,
-  .flip-card-back {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
+  /* ── Tab System ── */
+  .tab-active {
+    @apply px-5 py-2 rounded-xl text-sm font-semibold text-white
+           bg-indigo-950 border border-indigo-700/50;
+  }
+  .tab-inactive {
+    @apply px-5 py-2 rounded-xl text-sm font-medium text-slate-500
+           hover:text-slate-300 transition-all;
   }
 
-  .flip-card-front {
-    background: linear-gradient(
-      103.31deg,
-      rgba(255, 255, 255, 0) -9.33%,
-      rgba(255, 255, 255, 0.234) 119.91%
-    );
-    backdrop-filter: blur(14.3744px);
-
-    /* background: transparent; */
-    color: black;
+  /* ── Input System ── */
+  .input-dark {
+    @apply w-full bg-[#080818] border border-indigo-900/40 rounded-xl
+           px-4 py-3 text-white text-sm placeholder-slate-600 outline-none
+           focus:border-cyan-500/50 transition-all;
   }
 
-  .flip-card-back {
-    background-color: #2980b9;
-    color: white;
-    transform: rotateY(180deg);
-  }
-  .slider-parent {
-    position: relative;
-  }
-  .buble {
-    position: relative;
+  /* ── Section heading ── */
+  .section-title {
+    @apply text-slate-100 text-xl font-bold tracking-tight;
   }
 
-  .custom-reward-win > div {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    border-radius: "50%";
-  }
-  .custom-reward-win > div > div > canvas {
-    background-color: aliceblue;
-    border-radius: 50%;
-  }
-
-  .custom-reward-win > div > img {
-    top: 0px;
-    right: 0px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-  }
-  .custom-reward-win > div > div > canvas {
-    rotate: -45deg;
+  /* ── Gradient text ── */
+  .gradient-text {
+    @apply bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent;
   }
 }

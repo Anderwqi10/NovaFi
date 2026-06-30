@@ -3,75 +3,124 @@ import { Link, useLocation } from "react-router-dom";
 import { useWeb3React } from "@web3-react/core";
 import ConnectWallet from "./auth/ConnectWallet";
 
+const NAV_LINKS = [
+  { label: "Swap", path: "/swap" },
+  { label: "Liquidity", path: "/liquidity" },
+  { label: "Overview", path: "/overview" },
+  { label: "NFTs", path: "/nft" },
+  { label: "Blog", path: "/blog" },
+  { label: "Coins", path: "/coins" },
+];
+
 export function Header() {
   const { account } = useWeb3React();
   const location = useLocation();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [, setSelectedWallet] = useState<
-    "MetaMask" | "WalletConnect" | "Coinbase" | null
-  >(null);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [, setSelectedWallet] = useState<"MetaMask" | "WalletConnect" | "Coinbase" | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const truncate = (addr: string) =>
-    addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : "";
+  const truncate = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="flex items-center justify-between w-full px-8 md:px-16 py-5">
-      {/* Logo */}
-      <Link to="/" className="flex items-center gap-3">
-        <img src="/logoNovaFy.png" alt="novaFi" className="h-12 w-auto object-contain" />
-        <span className="font-bold text-xl tracking-wide leading-none bg-gradient-to-r from-white via-[#a78bfa] to-[#e84141] bg-clip-text text-transparent">novaFi</span>
-      </Link>
+    <>
+      <header className="sticky top-0 z-40 w-full border-b border-indigo-900/30 bg-[#03030f]/85 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
 
-      {/* Nav tabs - center (optional, shown on larger screens) */}
-      <nav className="hidden lg:flex items-center gap-2">
-        {[
-          { label: "Swap", path: "/swap" },
-          { label: "Liquidity", path: "/liquidity" },
-          { label: "Overview", path: "/overview" },
-          { label: "NFTs", path: "/nft" },
-          { label: "Blog", path: "/blog" },
-          { label: "Coins", path: "/coins" },
-        ].map(({ label, path }) => {
-          const active = location.pathname === path;
-          return (
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
+            <img src="/logoNovaFy.png" alt="novaFi" className="h-9 w-auto object-contain" />
+            <span className="font-bold text-lg tracking-wide bg-gradient-to-r from-cyan-400 via-indigo-400 to-violet-500 bg-clip-text text-transparent">
+              novaFi
+            </span>
+          </Link>
+
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {NAV_LINKS.map(({ label, path }) => (
+              <Link
+                key={path}
+                to={path}
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  isActive(path)
+                    ? "bg-indigo-950 border border-indigo-700/50 text-white"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-2 shrink-0">
             <Link
-              key={path}
-              to={path}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                active
-                  ? "bg-[#1e1e7a] text-white border border-white/20"
-                  : "text-white/70 hover:text-white"
-              }`}
+              to="/swap"
+              className="hidden sm:inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium border border-indigo-800/50 text-slate-300 hover:border-cyan-500/40 hover:text-white hover:bg-white/5 transition-all"
             >
-              {label}
+              Buy &amp; Sell
             </Link>
-          );
-        })}
-      </nav>
+            <button
+              onClick={() => setWalletOpen(true)}
+              disabled={!!account}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:opacity-90 transition-all disabled:opacity-70 shadow-sm shadow-cyan-500/20"
+            >
+              {account ? truncate(account) : "Connect Wallet"}
+            </button>
 
-      {/* Right buttons */}
-      <div className="flex items-center gap-3">
-        <Link
-          to="/swap"
-          className="px-5 py-2 rounded-full border border-white/30 bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-all"
-        >
-          Buy &amp; Sell
-        </Link>
-        <button
-          onClick={() => setIsAuthModalOpen(true)}
-          disabled={!!account}
-          className="px-5 py-2 rounded-full text-sm font-medium text-[#e84141] border border-[#e84141]/40 hover:bg-[#e84141]/10 transition-all disabled:opacity-80"
-        >
-          {account ? truncate(account) : "Connect Wallet"}
-        </button>
-      </div>
+            {/* Hamburger */}
+            <button
+              onClick={() => setMobileOpen((v) => !v)}
+              className="lg:hidden p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? (
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile dropdown */}
+        {mobileOpen && (
+          <div className="lg:hidden border-t border-indigo-900/30 bg-[#03030f]/95 backdrop-blur-xl px-4 py-3 flex flex-col gap-1">
+            {NAV_LINKS.map(({ label, path }) => (
+              <Link
+                key={path}
+                to={path}
+                onClick={() => setMobileOpen(false)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  isActive(path)
+                    ? "bg-indigo-950 border border-indigo-700/50 text-white"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+            <Link
+              to="/swap"
+              onClick={() => setMobileOpen(false)}
+              className="mt-1 px-4 py-2.5 rounded-xl text-sm font-medium text-center border border-indigo-800/50 text-slate-300 hover:border-cyan-500/40 hover:text-white transition-all"
+            >
+              Buy &amp; Sell
+            </Link>
+          </div>
+        )}
+      </header>
 
       <ConnectWallet
-        isModalOpen={isAuthModalOpen}
-        setIsModalOpen={setIsAuthModalOpen}
+        isModalOpen={walletOpen}
+        setIsModalOpen={setWalletOpen}
         setSelectedWallet={setSelectedWallet}
       />
-    </header>
+    </>
   );
 }
 

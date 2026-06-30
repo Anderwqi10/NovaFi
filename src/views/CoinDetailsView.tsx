@@ -22,19 +22,23 @@ const timeOptions = [
   { label: "1D", days: 1 },
   { label: "7D", days: 7 },
   { label: "1M", days: 30 },
-  { label: "1A", days: 365 },
+  { label: "1Y", days: 365 },
 ];
 
 const fmt = (n: number) =>
   n >= 1e9 ? `$${(n / 1e9).toFixed(2)}B` : n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : `$${n?.toLocaleString()}`;
 
-const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`rounded-2xl border border-white/10 bg-gradient-to-br from-[#1e1e6a]/50 via-[#12124a]/30 to-[#0a0a2e]/60 backdrop-blur-sm shadow-lg shadow-black/30 ${className}`}>{children}</div>
-);
+const TIP = {
+  background: "#0c0c24",
+  border: "1px solid rgba(99,102,241,0.3)",
+  borderRadius: 12,
+  color: "#e2e8f0",
+  fontSize: 12,
+};
 
 const Spinner = () => (
   <div className="flex items-center justify-center h-64">
-    <div className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+    <div className="w-7 h-7 border-2 border-indigo-800 border-t-cyan-400 rounded-full animate-spin" />
   </div>
 );
 
@@ -54,7 +58,7 @@ export default function CoinDetailsView() {
 
   const toggleFavorite = async () => {
     if (!isLoggedIn) {
-      alert("Inicia sesión desde el Blog para guardar favoritos.");
+      alert("Sign in from the Blog tab to save favorites.");
       return;
     }
     setFavLoading(true);
@@ -67,7 +71,7 @@ export default function CoinDetailsView() {
         setFavIds((prev) => new Set(Array.from(prev).concat(activeCoin.id)));
       }
     } catch {
-      alert("Error al actualizar favoritos");
+      alert("Error updating favorites");
     } finally {
       setFavLoading(false);
     }
@@ -93,68 +97,70 @@ export default function CoinDetailsView() {
   const positive = (change24h ?? 0) >= 0;
 
   return (
-    <div className="w-full px-8 md:px-16 py-4">
+    <div className="mx-auto max-w-7xl px-4 sm:px-8 py-6">
       {/* Header row */}
-      <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-        <h1 className="text-white text-3xl font-bold">Detalles de Moneda</h1>
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <h1 className="text-slate-100 text-2xl font-bold">Coin Details</h1>
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={toggleFavorite}
             disabled={favLoading}
-            title={favIds.has(activeCoin.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border transition-all disabled:opacity-50 ${
               favIds.has(activeCoin.id)
-                ? "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"
-                : "bg-white/5 border-white/10 text-white/40 hover:text-white"
-            } disabled:opacity-50`}
+                ? "bg-yellow-500/10 border-yellow-500/40 text-yellow-400"
+                : "border-indigo-800/50 text-slate-500 hover:text-slate-300 hover:border-indigo-700/50"
+            }`}
           >
             <span>{favIds.has(activeCoin.id) ? "★" : "☆"}</span>
-            <span className="text-xs">{favIds.has(activeCoin.id) ? "Favorito" : "Favoritos"}</span>
+            <span>{favIds.has(activeCoin.id) ? "Saved" : "Save"}</span>
           </button>
-          {coins.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setActiveCoin(c)}
-              className={`flex items-center gap-2 pb-1 text-sm font-semibold transition-all ${
-                activeCoin.id === c.id
-                  ? "text-white border-b-2 border-[#e84141]"
-                  : "text-white/50 hover:text-white border-b-2 border-transparent"
-              }`}
-            >
-              <span
-                className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ background: c.color }}
+          <div className="flex gap-1 bg-[#0c0c24] rounded-xl p-1 border border-indigo-900/40">
+            {coins.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setActiveCoin(c)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                  activeCoin.id === c.id
+                    ? "bg-indigo-950 border border-indigo-700/50 text-white"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
               >
-                {c.icon}
-              </span>
-              {c.label}
-            </button>
-          ))}
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                  style={{ background: c.color }}
+                >
+                  {c.icon}
+                </span>
+                <span className="hidden sm:inline">{c.label}</span>
+                <span className="sm:hidden">{c.symbol}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
         {/* About card */}
-        <Card className="p-5 flex flex-col gap-4">
+        <div className="rounded-2xl border border-indigo-900/40 bg-[#0c0c24] p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <span className="text-white font-semibold">Sobre</span>
+            <span className="text-slate-200 font-semibold">About</span>
             {lastUpdated && (
-              <span className="text-white/25 text-xs">{lastUpdated.toLocaleTimeString("es")}</span>
+              <span className="text-slate-600 text-xs">{lastUpdated.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</span>
             )}
           </div>
 
           {dLoading ? (
             <div className="flex flex-col gap-3">
-              <div className="h-14 w-14 rounded-full bg-white/10 animate-pulse" />
-              <div className="h-4 w-32 bg-white/10 animate-pulse rounded" />
-              <div className="h-3 w-full bg-white/10 animate-pulse rounded" />
-              <div className="h-3 w-5/6 bg-white/10 animate-pulse rounded" />
+              <div className="h-14 w-14 rounded-full bg-indigo-900/20 animate-pulse" />
+              <div className="h-4 w-32 bg-indigo-900/20 animate-pulse rounded" />
+              <div className="h-3 w-full bg-indigo-900/20 animate-pulse rounded" />
+              <div className="h-3 w-5/6 bg-indigo-900/20 animate-pulse rounded" />
             </div>
           ) : (
             <>
               <div className="flex items-center gap-3">
                 {detail?.image?.small ? (
-                  <img src={detail.image.small} alt={activeCoin.label} className="w-14 h-14 rounded-full" />
+                  <img src={detail.image.small} alt={activeCoin.label} className="w-14 h-14 rounded-full ring-2 ring-indigo-900/50" />
                 ) : (
                   <div
                     className="w-14 h-14 rounded-full flex items-center justify-center text-white text-2xl font-bold"
@@ -164,38 +170,38 @@ export default function CoinDetailsView() {
                   </div>
                 )}
                 <div>
-                  <div className="text-white font-bold text-lg">{activeCoin.label}</div>
-                  <div className="text-white/40 text-sm uppercase">{activeCoin.symbol}</div>
-                  <div className="text-white/40 text-xs">
+                  <div className="text-slate-100 font-bold text-lg">{activeCoin.label}</div>
+                  <div className="text-slate-500 text-sm uppercase tracking-wide">{activeCoin.symbol}</div>
+                  <div className="text-slate-600 text-xs mt-0.5">
                     1 {activeCoin.symbol} = ${price?.toLocaleString()} USD
                   </div>
                 </div>
               </div>
               {detail?.description?.en && (
-                <p className="text-white/50 text-xs leading-5 line-clamp-8">
+                <p className="text-slate-500 text-xs leading-5 line-clamp-8">
                   {detail.description.en.replace(/<[^>]+>/g, "")}
                 </p>
               )}
             </>
           )}
-        </Card>
+        </div>
 
         {/* Chart card */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-1 flex-wrap gap-3">
+        <div className="rounded-2xl border border-indigo-900/40 bg-[#0c0c24] p-6">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
             <div>
-              <div className="text-white font-semibold text-lg">Gráfico</div>
-              <div className="text-white/40 text-xs">Precio en tiempo real</div>
+              <div className="text-slate-200 font-semibold text-lg">Chart</div>
+              <div className="text-slate-600 text-xs">Real-time price</div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               {timeOptions.map((t) => (
                 <button
                   key={t.label}
                   onClick={() => setActiveTime(t)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
                     activeTime.label === t.label
-                      ? "bg-white text-[#1a1a6e] font-bold"
-                      : "text-white/50 border border-white/10 hover:text-white"
+                      ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                      : "text-slate-500 border border-indigo-900/40 hover:text-slate-300 hover:border-indigo-700/50"
                   }`}
                 >
                   {t.label}
@@ -205,28 +211,28 @@ export default function CoinDetailsView() {
           </div>
 
           {/* Stats row */}
-          <div className="flex gap-8 mt-4 mb-6 flex-wrap">
+          <div className="flex gap-6 mb-6 flex-wrap">
             <div>
-              <div className="text-white/40 text-xs">Precio</div>
+              <div className="text-slate-500 text-xs mb-1">Price</div>
               {dLoading ? (
-                <div className="h-8 w-32 bg-white/10 animate-pulse rounded mt-1" />
+                <div className="h-8 w-32 bg-indigo-900/20 animate-pulse rounded" />
               ) : (
-                <div className="text-white text-2xl font-bold">${price?.toLocaleString()}</div>
+                <div className="text-slate-100 text-2xl font-bold">${price?.toLocaleString()}</div>
               )}
             </div>
             <div>
-              <div className="text-white/40 text-xs">Cambio 24h</div>
-              <div className={`font-semibold text-sm flex items-center gap-1 mt-1 ${positive ? "text-green-400" : "text-red-400"}`}>
-                {positive ? "+" : ""}{change24h?.toFixed(2)}% {positive ? "▲" : "▼"}
-              </div>
+              <div className="text-slate-500 text-xs mb-1">24h Change</div>
+              <span className={`inline-flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-lg ${positive ? "text-emerald-400 bg-emerald-500/10" : "text-red-400 bg-red-500/10"}`}>
+                {positive ? "▲" : "▼"} {Math.abs(change24h ?? 0).toFixed(2)}%
+              </span>
             </div>
             <div>
-              <div className="text-white/40 text-xs">Volumen (24h)</div>
-              <div className="text-white font-semibold mt-1">{volume ? fmt(volume) : "—"}</div>
+              <div className="text-slate-500 text-xs mb-1">Volume (24h)</div>
+              <div className="text-slate-200 font-semibold">{volume ? fmt(volume) : "—"}</div>
             </div>
             <div>
-              <div className="text-white/40 text-xs">Cap. Mercado</div>
-              <div className="text-white font-semibold mt-1">{marketCap ? fmt(marketCap) : "—"}</div>
+              <div className="text-slate-500 text-xs mb-1">Market Cap</div>
+              <div className="text-slate-200 font-semibold">{marketCap ? fmt(marketCap) : "—"}</div>
             </div>
           </div>
 
@@ -242,10 +248,10 @@ export default function CoinDetailsView() {
                       <stop offset="95%" stopColor={activeCoin.color} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="time" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                  <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis hide domain={["auto", "auto"]} />
                   <Tooltip
-                    contentStyle={{ background: "#1a1a5e", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#fff", fontSize: 12 }}
+                    contentStyle={TIP}
                     formatter={(v: any) => [`$${Number(v).toLocaleString()}`, activeCoin.symbol]}
                   />
                   <Area
@@ -255,13 +261,13 @@ export default function CoinDetailsView() {
                     strokeWidth={2.5}
                     fill="url(#coinGrad)"
                     dot={false}
-                    activeDot={{ r: 5, fill: activeCoin.color, stroke: "#fff", strokeWidth: 2 }}
+                    activeDot={{ r: 5, fill: activeCoin.color, stroke: "#0c0c24", strokeWidth: 2 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );

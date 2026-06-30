@@ -118,10 +118,10 @@ router.use('/v1/tickets', v1TicketRoutes);
 router.use('/v1/webhooks', v1WebhookRoutes);
 router.use('/v1', v1HealthRoutes);
 
-cron.schedule("* * * * *", async function () {
-    console.log('userBUSDDepositCheck')
-    await registerController.userBUSDDepositCheck();
-});
+// cron.schedule("* * * * *", async function () {
+//     console.log('userBUSDDepositCheck')
+//     await registerController.userBUSDDepositCheck();
+// });
 
 const path1 = require('path')
 exports.getImage = async (req, res) => {
