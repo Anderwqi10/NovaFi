@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/images/logoNovaFy.png";
 
 import Twitter from "../assets/images/social-media/twitter.svg";
 import Discord from "../assets/images/social-media/discord.svg";
@@ -34,7 +35,7 @@ export function Footer() {
           {/* Brand */}
           <div className="sm:col-span-1">
             <a href="/" className="flex items-center gap-2.5 mb-4">
-              <img src="/logoNovaFy.png" alt="novaFi" className="h-9 w-auto object-contain" />
+              <img src={logo} alt="novaFi" className="h-9 w-auto object-contain" />
               <span className="font-bold text-lg bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">
                 novaFi
               </span>

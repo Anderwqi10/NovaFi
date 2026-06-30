@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWeb3React } from "@web3-react/core";
 import ConnectWallet from "./auth/ConnectWallet";
+import logo from "../assets/images/logoNovaFy.png";
 
 const NAV_LINKS = [
   { label: "Swap", path: "/swap" },
@@ -29,7 +30,7 @@ export function Header() {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 shrink-0 self-center">
-            <img src="/logoNovaFy.png" alt="novaFi" className="h-20 w-20 object-contain drop-shadow-lg" />
+            <img src={logo} alt="novaFi" className="h-20 w-20 object-contain drop-shadow-lg" />
             <span className="font-bold text-3xl tracking-wide bg-gradient-to-r from-cyan-400 via-indigo-400 to-violet-500 bg-clip-text text-transparent">
               novaFi
             </span>
