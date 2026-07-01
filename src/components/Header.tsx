@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWeb3React } from "@web3-react/core";
 import ConnectWallet from "./auth/ConnectWallet";
-import logo from "../assets/images/logoNovaFy.png";
+import logo from "../assets/logo/logoNovaFy.png";
 
 const NAV_LINKS = [
   { label: "Swap", path: "/swap" },

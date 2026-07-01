@@ -1,10 +1,10 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/images/logoNovaFy.png";
+import logo from "../assets/logo/logoNovaFy.png";
 
-import Twitter from "../assets/images/social-media/twitter.svg";
-import Discord from "../assets/images/social-media/discord.svg";
-import Telegram from "../assets/images/social-media/telegram.svg";
+import Twitter from "../assets/social/twitter.svg";
+import Discord from "../assets/social/discord.svg";
+import Telegram from "../assets/social/telegram.svg";
 
 const SOCIAL = [
   { icon: Twitter, label: "Twitter", href: "https://twitter.com" },

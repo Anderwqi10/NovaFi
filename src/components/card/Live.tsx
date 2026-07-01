@@ -4,12 +4,12 @@ import { BigNumber } from "@ethersproject/bignumber";
 
 import Button from "../../UI/Button";
 import RangeSlider from "../../common/RangeSlider";
-import { ReactComponent as Down } from "../../assets/images/down.svg";
-import { ReactComponent as Loader } from "../../assets/images/loader.svg";
-import { ReactComponent as Back } from "../../assets/images/back.svg";
-import upSideSvg from "../../assets/images/UpSide.svg";
-import downSideSvg from "../../assets/images/DownSide.svg";
-import Tick from "../../assets/images/Tick.gif";
+import { ReactComponent as Down } from "../../assets/icons/down.svg";
+import { ReactComponent as Loader } from "../../assets/icons/loader.svg";
+import { ReactComponent as Back } from "../../assets/icons/back.svg";
+import upSideSvg from "../../assets/icons/UpSide.svg";
+import downSideSvg from "../../assets/icons/DownSide.svg";
+import Tick from "../../assets/animations/Tick.gif";
 
 import { MetmaskContext } from "../../contexts/MetmaskContextProvider";
 import {

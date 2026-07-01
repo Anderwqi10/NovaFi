@@ -4,10 +4,10 @@ import { coinbaseWallet } from "../../connectors/coinbaseWallet";
 import { metaMask } from "../../connectors/metaMask";
 import { walletConnect } from "../../connectors/walletConnect";
 
-import Metamask from "../../assets/wallet/Metamask.svg";
-import Phantom from "../../assets/wallet/Phantom.svg";
-import Coinbase from "../../assets/wallet/Coinbase.svg";
-import WalletConnect from "../../assets/wallet/WalletConnect.svg";
+import Metamask from "../../assets/wallets/Metamask.svg";
+import Phantom from "../../assets/wallets/Phantom.svg";
+import Coinbase from "../../assets/wallets/Coinbase.svg";
+import WalletConnect from "../../assets/wallets/WalletConnect.svg";
 
 interface ConnectModalProps {
   isModalOpen: boolean;

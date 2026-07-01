@@ -69,6 +69,18 @@ export interface CoinDetail {
   };
 }
 
+export async function fetchTokenPrices(ids: string[]): Promise<Record<string, number>> {
+  const joined = ids.join(",");
+  const data = await cachedFetch<Record<string, { usd: number }>>(
+    `${BASE}/simple/price?ids=${joined}&vs_currencies=usd`
+  );
+  const result: Record<string, number> = {};
+  for (const [id, val] of Object.entries(data)) {
+    result[id] = val.usd;
+  }
+  return result;
+}
+
 export async function fetchCoinDetail(coinId: string): Promise<CoinDetail> {
   return cachedFetch<CoinDetail>(
     `${BASE}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`

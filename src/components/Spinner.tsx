@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Wheel } from "react-custom-roulette";
-import pointer from "../assets/images/pointer.svg";
+import pointer from "../assets/icons/pointer.svg";
 import { WheelData } from "react-custom-roulette/dist/components/Wheel/types";
 
 const options: WheelData[] = [

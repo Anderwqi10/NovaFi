@@ -3,13 +3,14 @@ import useAuth from "../../hooks/useAuth";
 
 import user, { StatsTimelines } from "../../__mocks__/StrangerProfile";
 
-import { ReactComponent as Verified } from "../../assets/images/verified.svg";
-import { ReactComponent as StatsUp } from "../../assets/images/profile-stats-up.svg";
-import { ReactComponent as StatsDown } from "../../assets/images/profile-stats-down.svg";
-import { ReactComponent as SettingsIcon } from "../../assets/images/Setting.svg";
+import { ReactComponent as Verified } from "../../assets/icons/verified.svg";
+import { ReactComponent as StatsUp } from "../../assets/profile/profile-stats-up.svg";
+import { ReactComponent as StatsDown } from "../../assets/profile/profile-stats-down.svg";
+import { ReactComponent as SettingsIcon } from "../../assets/icons/Setting.svg";
 import { useNavigate } from "react-router";
-// import Banner1 from "../../assets/images/stranger-profile-banner1.svg";
-// import { ReactComponent as Banner2 } from "../../assets/images/stranger-profile-banner2.svg";
+import banner1 from "../../assets/banners/banner1.png";
+import banner2 from "../../assets/banners/banner2.svg";
+import defaultProfile from "../../assets/profile/default-profile.png";
 
 type Stats = {
   time: string;
@@ -31,21 +32,21 @@ const BannerSection = () => {
           <div className={"h-[200px] w-[450px]"}>
             <img
               className="h-[200px] w-[450px]"
-              src="/banner1.png"
+              src={banner1}
               alt="Profile banner"
             />
           </div>
           <div className={"h-[200px] w-[200px]"}>
             <img
               className="h-[200px] w-[200px]"
-              src="/banner2.svg"
+              src={banner2}
               alt="Secondary profile banner"
             />
           </div>
         </div>
         <div className="absolute top-[150px] left-[40px]">
           <img
-            src="/default-profile.png"
+            src={defaultProfile}
             className="w-[100px] h-[100px] rounded-full border-[#000] border-[4px]"
             alt="Profile avatar"
           />

@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 
 import { MAX_TIMER_IN_MINUTES, PRESICION_LENGTH } from "../../constants/common";
-import { ReactComponent as Down } from "../../assets/images/down.svg";
-import { ReactComponent as Loader } from "../../assets/images/loader.svg";
-import { ReactComponent as Claim } from "../../assets/images/Claim.svg";
+import { ReactComponent as Down } from "../../assets/icons/down.svg";
+import { ReactComponent as Loader } from "../../assets/icons/loader.svg";
+import { ReactComponent as Claim } from "../../assets/icons/Claim.svg";
 
-import upSideSvg from "../../assets/images/UpSide.svg";
-import downSideSvg from "../../assets/images/DownSide.svg";
-import calculatingGif from "../../assets/images/calculating.gif";
+import upSideSvg from "../../assets/icons/UpSide.svg";
+import downSideSvg from "../../assets/icons/DownSide.svg";
+import calculatingGif from "../../assets/animations/calculating.gif";
 import AnimatedNumber from "../../common/AnimatedNumber";
 
 const Header = ({

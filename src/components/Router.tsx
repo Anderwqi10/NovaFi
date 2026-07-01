@@ -8,6 +8,7 @@ import PublicRoutes from "./helper/PublicRoutes";
 
 const Dashboard      = lazy(() => import("../views/Dashboard"));
 const SwapView       = lazy(() => import("../views/SwapView"));
+const LiquidityView  = lazy(() => import("../views/LiquidityView"));
 const OverviewView   = lazy(() => import("../views/OverviewView"));
 const CoinDetailsView = lazy(() => import("../views/CoinDetailsView"));
 const NFTView        = lazy(() => import("../views/NFTView"));
@@ -40,7 +41,7 @@ export function Routers() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/swap"      element={<SwapView />} />
-          <Route path="/liquidity" element={<SwapView />} />
+          <Route path="/liquidity" element={<LiquidityView />} />
           <Route path="/overview"  element={<OverviewView />} />
           <Route path="/coins"     element={<CoinDetailsView />} />
           <Route path="/nft"       element={<NFTView />} />

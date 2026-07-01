@@ -1,7 +1,7 @@
 import React, { Fragment, useContext, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { ReactComponent as CopyIcon } from "../../assets/images/copy.svg";
+import { ReactComponent as CopyIcon } from "../../assets/icons/copy.svg";
 import { getApi, putApi } from "../../services/axios.service";
 import useAuth from "../../hooks/useAuth";
 import { toast } from "react-toastify";

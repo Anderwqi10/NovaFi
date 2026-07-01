@@ -2,7 +2,7 @@
 import React, { Fragment, useContext, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { ReactComponent as GoogleButton } from "../../assets/images/GoogleButton.svg";
+import { ReactComponent as GoogleButton } from "../../assets/icons/GoogleButton.svg";
 import { postApi } from "../../services/axios.service";
 import { handleSignInWithGoogleClick } from "../../services/auth.service";
 import useAuth from "../../hooks/useAuth";
