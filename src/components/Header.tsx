@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useWeb3React } from "@web3-react/core";
 import ConnectWallet from "./auth/ConnectWallet";
-import logo from "../assets/logo/logoNovaFy.png";
+import logo from "../assets/logo/logoNovaFi.png";
 
 const NAV_LINKS = [
   { label: "Swap", path: "/swap" },
@@ -26,14 +26,11 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-indigo-900/30 bg-[#03030f]/85 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8 min-h-[6rem] flex items-center justify-between gap-4 py-2">
+        <div className="mx-auto max-w-7xl px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 shrink-0 self-center">
-            <img src={logo} alt="novaFi" className="h-20 w-20 object-contain drop-shadow-lg" />
-            <span className="font-bold text-3xl tracking-wide bg-gradient-to-r from-cyan-400 via-indigo-400 to-violet-500 bg-clip-text text-transparent">
-              novaFi
-            </span>
+          <Link to="/" className="flex items-center shrink-0">
+            <img src={logo} alt="novaFi" className="h-20 w-auto object-contain drop-shadow-lg" />
           </Link>
 
           {/* Desktop Nav */}

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import logo from "../assets/logo/logoNovaFy.png";
+import logo from "../assets/logo/logo.png";
 
 import Twitter from "../assets/social/twitter.svg";
 import Discord from "../assets/social/discord.svg";
@@ -34,11 +34,8 @@ export function Footer() {
 
           {/* Brand */}
           <div className="sm:col-span-1">
-            <a href="/" className="flex items-center gap-2.5 mb-4">
-              <img src={logo} alt="novaFi" className="h-9 w-auto object-contain" />
-              <span className="font-bold text-lg bg-gradient-to-r from-cyan-400 to-violet-500 bg-clip-text text-transparent">
-                novaFi
-              </span>
+            <a href="/" className="flex items-center mb-4">
+              <img src={logo} alt="novaFi" className="h-16 w-16 object-contain" />
             </a>
             <p className="text-slate-500 text-sm leading-relaxed mb-5">
               Decentralized DeFi trading, staking and prediction platform powered by real-time data.
