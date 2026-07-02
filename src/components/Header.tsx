@@ -29,8 +29,8 @@ export function Header() {
         <div className="mx-auto max-w-7xl px-4 sm:px-8 h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center shrink-0">
-            <img src={logo} alt="novaFi" className="h-20 w-auto object-contain drop-shadow-lg" />
+          <Link to="/" className="flex items-center shrink-0 h-full py-1">
+            <img src={logo} alt="novaFi" className="h-full w-auto max-h-14 object-contain drop-shadow-lg" />
           </Link>
 
           {/* Desktop Nav */}
