@@ -184,10 +184,10 @@ All media files live under `src/assets/` organized by category. Always import wi
 
 ```
 src/assets/
-├── logo/              → logoNovaFy.png  (main app logo)
+├── logo/              → logoNovaFi.png (navbar: logo + name), logo.png (icon only: footer, favicon)
 ├── icons/             → UI SVGs: back, loader, verified, Setting, copy,
 │                         down, DownSide, UpSide, Claim, GoogleButton,
-│                         menu-bar, pointer, RewardWheel, Table
+│                         pointer, RewardWheel, Table
 ├── banners/           → banner1.png, banner2.svg,
 │                         stranger-profile-banner1.svg, stranger-profile-banner2.svg
 ├── profile/           → default-profile.png, profile-stats-up.svg,
@@ -195,15 +195,21 @@ src/assets/
 ├── animations/        → calculating.gif, Tick.gif
 ├── social/            → twitter.svg, discord.svg, telegram.svg,
 │                         linkedin.svg, fb.svg, instagram.svg
-├── wallets/           → Metamask.svg, WalletConnect.svg, Coinbase.svg, Phantom.svg
-├── misc/              → Old Lumanagi branding (do not delete until confirmed unused)
-└── design-references/ → design-ref-1..5.jpeg (original design screenshots)
+└── wallets/           → Metamask.svg, WalletConnect.svg, Coinbase.svg, Phantom.svg
 ```
 
-**Important rule:** Always import the logo via webpack to prevent it disappearing on tab switch:
+```
+public/
+├── favicon.png        → icon-only logo (copia de logo.png — usado por index.html)
+├── index.html
+├── manifest.json
+└── robots.txt
+```
+
+**Important rule:** Always import assets via webpack to prevent them disappearing on route change:
 ```ts
-import logo from "../assets/logo/logoNovaFy.png"; // ✅ correct
-// src="/logoNovaFy.png"  ← ❌ avoid raw string paths
+import logo from "../assets/logo/logoNovaFi.png"; // ✅ correct
+// src="/logoNovaFi.png"  ← ❌ avoid raw string paths
 ```
 
 ---

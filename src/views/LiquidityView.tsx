@@ -104,13 +104,39 @@ function TxNotification({ state, hash, error, onClose }: {
 
 // ─── Token logo pair ──────────────────────────────────────────────────────────
 
+const TOKEN_COLORS: Record<string, string> = {
+  BNB:  "#f0b90b", BUSD: "#f0b90b", USDT: "#26a17b",
+  USDC: "#2775ca", ETH:  "#627eea", BTCB: "#f7931a",
+  CAKE: "#d1884f", LINK: "#2a5ada",
+};
+
+function TokenLogo({ token, className }: { token: Token; className: string }) {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) {
+    return (
+      <div
+        className={`${className} flex items-center justify-center text-white text-[10px] font-bold`}
+        style={{ background: TOKEN_COLORS[token.symbol] ?? "#6366f1" }}
+      >
+        {token.symbol.slice(0, 2)}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={token.logoUrl}
+      alt={token.symbol}
+      className={className}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function PairLogos({ a, b }: { a: Token; b: Token }) {
   return (
     <div className="flex items-center shrink-0">
-      <img src={a.logoUrl} alt={a.symbol} className="w-8 h-8 rounded-full ring-2 ring-[#0c0c24] z-10"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-      <img src={b.logoUrl} alt={b.symbol} className="w-8 h-8 rounded-full ring-2 ring-[#0c0c24] -ml-3"
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+      <TokenLogo token={a} className="w-8 h-8 rounded-full ring-2 ring-[#0c0c24] z-10" />
+      <TokenLogo token={b} className="w-8 h-8 rounded-full ring-2 ring-[#0c0c24] -ml-3" />
     </div>
   );
 }
