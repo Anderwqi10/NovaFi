@@ -184,7 +184,9 @@ All media files live under `src/assets/` organized by category. Always import wi
 
 ```
 src/assets/
-├── logo/              → logoNovaFi.png (navbar: logo + name), logo.png (icon only: footer, favicon)
+├── logo/              → logoNovaFi.png (navbar: logo + name), logo.png (icon only: footer)
+├── crypto-icons/      → bnb.png, busd.png, usdt.png, eth.png, bitcoin.png, pancakeswap.png
+│                         index.ts  ← CRYPTO_LOGOS map, import here to add new icons
 ├── icons/             → UI SVGs: back, loader, verified, Setting, copy,
 │                         down, DownSide, UpSide, Claim, GoogleButton,
 │                         pointer, RewardWheel, Table
@@ -200,7 +202,7 @@ src/assets/
 
 ```
 public/
-├── favicon.png        → icon-only logo (copia de logo.png — usado por index.html)
+├── favicon.jpeg       → app favicon (custom image, referenced in index.html)
 ├── index.html
 ├── manifest.json
 └── robots.txt
@@ -211,6 +213,22 @@ public/
 import logo from "../assets/logo/logoNovaFi.png"; // ✅ correct
 // src="/logoNovaFi.png"  ← ❌ avoid raw string paths
 ```
+
+### Crypto token logos (`src/assets/crypto-icons/index.ts`)
+Local icons take priority over CoinGecko URLs. To add a new icon:
+1. Drop the PNG (64×64px recommended) into `src/assets/crypto-icons/`
+2. Add an import and entry in `index.ts`
+```ts
+import link from "./link.png";
+export const CRYPTO_LOGOS: Record<string, string> = {
+  // existing entries...
+  LINK: link,
+};
+```
+Tokens without a local icon fall back to `token.logoUrl` (CoinGecko) automatically.
+USDC and LINK currently use CoinGecko fallback.
+
+Token logo URLs use domain `coin-images.coingecko.com` (updated from deprecated `assets.coingecko.com`).
 
 ---
 
@@ -384,6 +402,43 @@ Previously used raw string paths (`src="/banner1.png"`) that depended on `public
 ### CLAUDE.md created
 - English-language reference document added at project root
 - Covers stack, routes, design system, assets, blockchain constants, hooks, backend, and changelog
+
+### NFTView improvements
+- Follow/Following buttons are now interactive (toggle state via `useState`)
+- Category filter pills redesigned to `rounded-full` with active gradient
+- NFTs/Collections toggle uses subtle gradient when active
+- "Place a bid" button has glow effect on hover and lightning bolt icon
+- Follow button shows `+ Follow` (gradient) / `Following` (hover turns red for unfollow)
+- "See All" link replaced with chevron icon that animates on hover
+- Seller list now shows rank number (#1–8) before each avatar
+
+### Header — logo sizing fix
+- Logo `Link` container: `h-full py-1` to stay within navbar bounds
+- Image: `h-full w-auto max-h-14` — respects navbar height (64px) without overflow
+- Prevents logo from rendering outside navbar boundaries on any screen size
+
+### LiquidityView — token logo resilience
+- `TokenLogo` component: `onError` now shows a colored placeholder with token initials instead of hiding the image
+- `TOKEN_COLORS` map added for fallback background colors per symbol
+
+### Crypto icon logo system
+- New folder `src/assets/crypto-icons/` for locally-stored token icons
+- `index.ts` exports `CRYPTO_LOGOS` map (symbol → webpack-imported image)
+- `SwapView` and `LiquidityView` use `CRYPTO_LOGOS[symbol] ?? token.logoUrl` — local first, CoinGecko fallback
+- Local icons: BNB, BUSD, USDT, ETH, BTCB (`bitcoin.png`), CAKE (`pancakeswap.png`)
+- CoinGecko fallback: USDC, LINK
+- Token logo URLs updated from deprecated `assets.coingecko.com` → `coin-images.coingecko.com`
+
+### Asset cleanup — old design removed
+- Deleted `src/assets/misc/` (7 Lumanagi branding files)
+- Deleted `src/assets/design-references/` (5 design reference images)
+- Deleted from `public/`: `logoNovaFy.png`, `logo192.png`, `logo512.png`, `lumanagi-coin 1.png`, `Polygon 1.svg`, `Polygon 2.png`, `menu-bar.svg`, `banner1.png`, `banner2.svg`, `default-profile.png`
+- `public/` now contains only: `favicon.jpeg`, `index.html`, `manifest.json`, `robots.txt`
+
+### Favicon
+- Replaced generic PNG favicon with custom `favicon.jpeg`
+- `index.html` updated: `type="image/jpeg"`, both `rel="icon"` and `rel="apple-touch-icon"` point to `favicon.jpeg`
+- `theme-color` meta updated to `#03030f` (matches app background)
 
 ---
 
