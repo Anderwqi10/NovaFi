@@ -8,6 +8,7 @@ import { fetchTokenPrices } from "../services/coingecko.service";
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
 import ConnectWallet from "../components/auth/ConnectWallet";
+import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 
 // ─── ABIs ────────────────────────────────────────────────────────────────────
 
@@ -122,9 +123,10 @@ function TokenLogo({ token, className }: { token: Token; className: string }) {
       </div>
     );
   }
+  const src = CRYPTO_LOGOS[token.symbol] ?? token.logoUrl;
   return (
     <img
-      src={token.logoUrl}
+      src={src}
       alt={token.symbol}
       className={className}
       onError={() => setFailed(true)}

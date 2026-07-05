@@ -13,6 +13,7 @@ import { fetchCoinChart, fetchTokenPrices } from "../services/coingecko.service"
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
 import ConnectWallet from "../components/auth/ConnectWallet";
+import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 
 const ROUTER_ABI = [
   "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)",
@@ -109,13 +110,10 @@ function TokenModal({
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left"
               >
                 <img
-                  src={token.logoUrl}
+                  src={CRYPTO_LOGOS[token.symbol] ?? token.logoUrl}
                   alt={token.symbol}
                   className="w-8 h-8 rounded-full shrink-0"
-                  onError={(e) => {
-                    const el = e.target as HTMLImageElement;
-                    el.style.display = "none";
-                  }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="text-slate-100 text-sm font-semibold">{token.symbol}</div>
@@ -604,7 +602,7 @@ export default function SwapView() {
                   onClick={() => setTokenModal("from")}
                   className="flex items-center gap-2 bg-[#0c0c24] border border-indigo-800/50 rounded-xl px-3 py-1.5 shrink-0 text-sm font-semibold text-slate-200 hover:border-cyan-500/40 hover:text-white transition-all"
                 >
-                  <img src={fromToken.logoUrl} alt={fromToken.symbol} className="w-5 h-5 rounded-full"
+                  <img src={CRYPTO_LOGOS[fromToken.symbol] ?? fromToken.logoUrl} alt={fromToken.symbol} className="w-5 h-5 rounded-full"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                   {fromToken.symbol}
@@ -656,7 +654,7 @@ export default function SwapView() {
                 >
                   {toToken ? (
                     <>
-                      <img src={toToken.logoUrl} alt={toToken.symbol} className="w-5 h-5 rounded-full"
+                      <img src={CRYPTO_LOGOS[toToken.symbol] ?? toToken.logoUrl} alt={toToken.symbol} className="w-5 h-5 rounded-full"
                         onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                       />
                       {toToken.symbol}
