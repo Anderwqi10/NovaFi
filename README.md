@@ -92,11 +92,11 @@ npm run server     # Backend only (port 1357)
 | Route | View |
 |---|---|
 | `/swap` | Token swap with real-time BNB chart |
+| `/liquidity` | Liquidity pools (PancakeSwap-style) |
 | `/overview` | Global market + top 10 coins with sparklines |
 | `/coins` | BTC/ETH/XMR/LTC details + favorites |
 | `/nft` | NFT gallery |
 | `/blog` | Blog with database posts + login/register |
-| `/prediction` | Prediction dashboard |
 
 ---
 
@@ -137,7 +137,7 @@ GET /api/pg/blog/:id
 ```
 novaFi/
 ├── src/
-│   ├── views/        # Swap, Overview, Coins, NFT, Blog
+│   ├── views/        # Swap, Liquidity, Overview, Coins, NFT, Blog
 │   ├── components/   # Header, Footer, Router, ConnectWallet
 │   ├── hooks/        # useLiveData, useAuth, useContract
 │   └── services/     # coingecko.service.ts, pg.api.service.ts

@@ -6,7 +6,6 @@ import Footer from "./Footer";
 import PrivateRoutes from "./helper/PrivateRoutes";
 import PublicRoutes from "./helper/PublicRoutes";
 
-const Dashboard      = lazy(() => import("../views/Dashboard"));
 const SwapView       = lazy(() => import("../views/SwapView"));
 const LiquidityView  = lazy(() => import("../views/LiquidityView"));
 const OverviewView   = lazy(() => import("../views/OverviewView"));
@@ -47,7 +46,6 @@ export function Routers() {
           <Route path="/nft"       element={<NFTView />} />
           <Route path="/blog"      element={<BlogView />} />
 
-          <Route path="/prediction" element={<Dashboard />} />
           <Route
             path="/reset-password"
             element={<PublicRoutes><ResetPassword /></PublicRoutes>}
