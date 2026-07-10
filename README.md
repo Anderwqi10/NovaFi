@@ -4,7 +4,7 @@
 
 # novaFi
 
-Decentralized DeFi trading, staking and prediction platform. Includes real-time cryptocurrency data, token swap, NFTs and a blog backed by a SQLite database.
+Decentralized DeFi trading platform on BNB Chain. Real on-chain token swaps and liquidity via PancakeSwap V2, real-time cryptocurrency data, NFT gallery, and a blog backed by a SQLite database.
 
 ---
 
@@ -45,8 +45,9 @@ npm install
 # 3. Install backend dependencies
 cd backend && npm install && cd ..
 
-# 4. Create the environment file
+# 4. Create the environment files
 cp backend/.env.example backend/.env
+cp .env.example .env        # optional — only needed to point the frontend at a non-local backend
 ```
 
 That's it. The database is created automatically the first time you run the project.
@@ -91,12 +92,12 @@ npm run server     # Backend only (port 1357)
 
 | Route | View |
 |---|---|
-| `/swap` | Token swap with real-time BNB chart |
-| `/liquidity` | Liquidity pools (PancakeSwap-style) |
-| `/overview` | Global market + top 10 coins with sparklines |
-| `/coins` | BTC/ETH/XMR/LTC details + favorites |
-| `/nft` | NFT gallery |
-| `/blog` | Blog with database posts + login/register |
+| `/swap` | On-chain token swap (PancakeSwap V2) with live AMM quotes, price impact and real-time chart |
+| `/liquidity` | Liquidity pools with live on-chain TVL, add/remove liquidity |
+| `/overview` | Global market stats + top tokens table with sparklines and search |
+| `/coins` | BTC/ETH/XMR/LTC details + favorites (login required) |
+| `/nft` | NFT gallery and collections with search, filters and bidding |
+| `/blog` | Blog with paginated posts, category filter, article view + login/register |
 
 ---
 
@@ -136,18 +137,19 @@ GET /api/pg/blog/:id
 
 ```
 novaFi/
+├── .env.example      # Frontend env template (REACT_APP_API_URL)
 ├── src/
 │   ├── views/        # Swap, Liquidity, Overview, Coins, NFT, Blog
-│   ├── components/   # Header, Footer, Router, ConnectWallet
-│   ├── hooks/        # useLiveData, useAuth, useContract
+│   ├── components/   # Header, Footer, Router, ConnectWallet, AuthModal
+│   ├── hooks/        # useLiveData, useTokenBalance, useSwitchChain
 │   └── services/     # coingecko.service.ts, pg.api.service.ts
 ├── backend/
-│   ├── app.js           # Server entry point
+│   ├── app.js           # Server entry point (mounts /api/pg, SQLite)
 │   ├── database.sqlite  # Data file (auto-created)
 │   ├── db/              # SQLite connection + schema + init
-│   ├── controllers/     # auth, transactions, favorites, blog
-│   ├── middleware/      # JWT auth
-│   └── routes/          # pg.routes.js + legacy routes
+│   ├── controllers/     # *.pg.controller.js — auth, transactions, favorites, blog
+│   ├── middleware/      # pg.auth.middleware.js (JWT)
+│   └── routes/          # pg.routes.js
 └── public/
 ```
 

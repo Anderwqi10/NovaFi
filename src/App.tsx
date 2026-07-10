@@ -7,21 +7,17 @@ import "react-toastify/dist/ReactToastify.css";
 
 import Routers from "./components/Router";
 import MetmaskContextProvider from "./contexts/MetmaskContextProvider";
-import AuthContextProvider from "./contexts/AuthContext";
-// import WinnerTable from "./components/winner/WinnerTable";
 
 function App() {
   if (!(window as any).Buffer) (window as any).Buffer = Buffer;
   return (
     <MetmaskContextProvider>
-      <AuthContextProvider>
-        <div className="relative w-full overflow-x-hidden min-h-screen" id="dashboard">
-          <BrowserRouter>
-            <Routers />
-          </BrowserRouter>
-        </div>
-        <ToastContainer />
-      </AuthContextProvider>
+      <div className="relative w-full overflow-x-hidden min-h-screen" id="dashboard">
+        <BrowserRouter>
+          <Routers />
+        </BrowserRouter>
+      </div>
+      <ToastContainer />
     </MetmaskContextProvider>
   );
 }

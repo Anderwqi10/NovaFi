@@ -13,7 +13,6 @@ novaFi is a DeFi (Decentralized Finance) platform that provides:
 - **Coin Details** — historical price charts per coin
 - **NFTs** — gallery and collections browser
 - **Blog** — posts with categories, events and podcasts
-- **Prediction** — BNB/USD price prediction game
 
 ---
 
@@ -35,8 +34,6 @@ novaFi is a DeFi (Decentralized Finance) platform that provides:
 |---|---|---|
 | Node.js + Express | 4.19 | REST API |
 | better-sqlite3 | 12.x | Synchronous SQLite, file: `backend/database.sqlite` |
-| node-cron | 3.x | Scheduled tasks |
-| socket.io | 4.7 | Real-time chat (support tickets) |
 | jsonwebtoken | 9.x | JWT authentication |
 | bcryptjs | 3.x | Password hashing |
 
@@ -57,41 +54,37 @@ Run both with: `npm start` (uses `concurrently`)
 
 ```
 novaFi/
+├── .env.example             ← Frontend env template (REACT_APP_API_URL)
 ├── src/
 │   ├── assets/              ← All media files (see Assets section)
 │   ├── common/              ← Generic shared components (AnimatedNumber, RangeSlider)
 │   ├── components/
-│   │   ├── auth/            ← Login, Register, ConnectWallet, ForgotPassword, ResetPassword, ChangePassword
-│   │   ├── card/            ← Live, Next, Prev (prediction game cards)
-│   │   ├── helper/          ← PrivateRoutes, PublicRoutes
-│   │   ├── profile/         ← Profile, EditProfile
+│   │   ├── auth/            ← AuthModal (JWT login/register), ConnectWallet (Web3 wallets)
 │   │   ├── WalletComponents/← Legacy wallet system (NOT currently in use)
 │   │   ├── Footer.tsx
 │   │   ├── Header.tsx
-│   │   ├── Router.tsx       ← All client route definitions
-│   │   ├── Spinner.tsx      ← Prize roulette wheel
-│   │   └── Timer.tsx
+│   │   └── Router.tsx       ← All client route definitions
 │   ├── connectors/          ← Web3React connectors (metaMask, coinbaseWallet, walletConnect)
 │   ├── constants/
 │   │   ├── contracts.ts     ← Blockchain addresses (PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID)
 │   │   ├── tokens.ts        ← DeFi token list with metadata
 │   │   ├── networks.ts      ← Network configuration
-│   │   └── common.ts        ← General game constants
-│   ├── contexts/            ← AuthContext, MetmaskContextProvider
-│   ├── contract/            ← JSON ABIs and contract functions (prediction game)
+│   │   └── common.ts        ← General constants
+│   ├── contexts/            ← MetmaskContextProvider
+│   ├── contract/            ← JSON ABIs (legacy prediction game — only used by MetmaskContextProvider)
 │   ├── hooks/               ← Custom hooks (see Hooks section)
-│   ├── services/            ← External API calls and backend requests
+│   ├── services/            ← coingecko.service.ts, pg.api.service.ts
 │   ├── UI/                  ← Base reusable components (Button, CustomModal, MotionButton)
 │   ├── utils/               ← Helpers (blockchain, formatters)
 │   └── views/               ← Main page components (see Routes section)
 ├── backend/
-│   ├── app.js               ← Server entry point
-│   ├── config.js            ← Environment variable configuration
-│   ├── controllers/         ← Business logic per domain
+│   ├── app.js               ← Server entry point (mounts /api/pg only, SQLite)
+│   ├── controllers/         ← Active: *.pg.controller.js (auth, blog, favorites, transactions)
+│   │                           The rest are LEGACY MySQL files, no longer mounted
 │   ├── db/                  ← SQLite init and SQL schema
-│   ├── middleware/          ← JWT auth, validators, error handling
-│   ├── models/              ← Data models (user, wallet, staking, etc.)
-│   ├── routes/              ← REST endpoint definitions
+│   ├── middleware/          ← pg.auth.middleware.js (JWT). Rest are legacy
+│   ├── models/              ← LEGACY MySQL models — not used by anything
+│   ├── routes/              ← Active: pg.routes.js. Rest are legacy, not mounted
 │   └── database.sqlite      ← SQLite database file (do NOT commit to git)
 └── public/                  ← Static assets served directly (favicon, etc.)
 ```
@@ -109,12 +102,6 @@ novaFi/
 | `/coins` | `CoinDetailsView` | Public |
 | `/nft` | `NFTView` | Public |
 | `/blog` | `BlogView` | Public |
-| `/prediction` | `Dashboard` | Public |
-| `/reset-password` | `ResetPassword` | Public only (unauthenticated) |
-| `/google/login` | `GoogleLogin` | Private (requires auth) |
-| `/profile` | `Profile` | Private |
-| `/edit-profile` | `EditProfile` | Private |
-| `/google/redirect` | `GoogleRedirect` | Public |
 
 All view components are loaded with `React.lazy()` + `Suspense`.
 
@@ -202,7 +189,8 @@ src/assets/
 
 ```
 public/
-├── favicon.jpeg       → app favicon (custom image, referenced in index.html)
+├── logoFN.ico             → app favicon (referenced in index.html)
+├── apple-touch-icon.png   → 180×180 icon for iOS/PWA
 ├── index.html
 ├── manifest.json
 └── robots.txt
@@ -255,10 +243,15 @@ BNB (native), BUSD, USDT, USDC, ETH (BEP-20), BTCB, CAKE, LINK
 | USDT/BUSD| `0x7EFaEf62fDdCCa950418312c6C91Aef321375A00` |
 
 ### Swap Flow
-1. Verify `chainId === 56` (BSC mainnet)
-2. If input token is ERC-20: check `allowance` → approve `MaxUint256` if needed
-3. Call Router: `swapExactETHForTokens` / `swapExactTokensForETH` / `swapExactTokensForTokens`
-4. Slippage stored in `localStorage` under key `novaFi_slippage` (default `0.5%`)
+1. Quote via `getAmountsOut` on the router (read-only BSC RPC, debounced 350ms); CoinGecko prices are only a fallback
+2. Route always built with `buildPath()`: BNB→token `[WBNB, t]`, token→BNB `[t, WBNB]`, token→token `[a, WBNB, b]`
+3. Price impact = trade quote vs 1/1000-size baseline quote; button blocks at >15%
+4. Verify `chainId === 56` (BSC mainnet)
+5. If input token is ERC-20: check `allowance` → approve `MaxUint256` if needed
+6. Fresh `getAmountsOut` right before sending; `amountOutMin` = quote minus slippage (basis points)
+7. Call Router: `swapExactETHForTokens` / `swapExactTokensForETH` / `swapExactTokensForTokens`
+8. On confirmation, record via `pgCreateTransaction` if `pg_token` session exists
+9. Slippage stored in `localStorage` under key `novaFi_slippage` (default `0.5%`)
 
 ### ABIs (inline, human-readable format)
 ABIs are defined inline in each view file to avoid separate JSON files:
@@ -277,9 +270,17 @@ const ROUTER_ABI = [
 - `fetchTopCoins(limit)` — top coins by market cap
 - `fetchGlobal()` — global market data
 - `fetchCoinChart(coinId, days)` — historical price data
+- `fetchCoinVolumeChart(coinId, days)` — historical volume data (same endpoint/cache as chart)
 - `fetchCoinDetail(coinId)` — full coin detail
 - `fetchTokenPrices(ids[])` — multiple prices via `/simple/price`
 - Internal 30-second cache (`cachedFetch`)
+
+### `src/services/pg.api.service.ts`
+- Base URL from `REACT_APP_API_URL` env var (fallback `http://localhost:1357`)
+- Auth: `pgRegister`, `pgLogin`, `pgMe` — JWT stored as `pg_token` in localStorage
+- Blog: `pgGetBlogPosts(limit, offset, category)`, `pgGetBlogPost(id)`
+- Transactions: `pgGetTransactions`, `pgCreateTransaction`
+- Favorites: `pgGetFavorites`, `pgAddFavorite`, `pgRemoveFavorite`
 
 ### `src/hooks/useLiveData.ts`
 Auto-refreshes market data every 30 seconds.
@@ -291,22 +292,23 @@ Auto-refreshes every 15 seconds.
 ### `src/hooks/useSwitchChain.tsx`
 Prompts the wallet to switch to the specified network (BSC = chain 56).
 
-### `src/hooks/useAuth.ts`
-User authentication with the project's own backend.
-
 ---
 
 ## Backend — Main Endpoints
 
-| Method | Route | Description |
-|---|---|---|
-| `GET` | `/api/pg/*` | Blog/PostgreSQL routes (`pg.routes.js`) |
-| `POST` | `/api/auth/*` | Login, register, Google OAuth |
-| `GET/POST` | `/api/users/*` | User profile |
-| `GET/POST` | `/api/wallets/*` | User wallets |
-| `GET/POST` | `/api/staking/*` | Staking |
-| `GET/POST` | `/api/transactions/*` | Transaction history |
-| `GET/POST` | `/api/withdrawals/*` | Withdrawal requests |
+All active endpoints are under `/api/pg` (`backend/routes/pg.routes.js`):
+
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/pg/auth/register` | — | Create account |
+| `POST` | `/api/pg/auth/login` | — | Login, returns JWT |
+| `GET` | `/api/pg/auth/me` | JWT | Current user |
+| `GET` | `/api/pg/blog` | — | Posts (`?limit&offset&category`) |
+| `GET` | `/api/pg/blog/:id` | — | Single post |
+| `GET/POST` | `/api/pg/transactions` | JWT | Swap history / record swap |
+| `GET/POST/DELETE` | `/api/pg/favorites` | JWT | Coin watchlist |
+
+The old `/api/*` MySQL routes are no longer mounted in `app.js`.
 
 ### Database
 - Engine: **SQLite** (file: `backend/database.sqlite`)
@@ -316,16 +318,6 @@ User authentication with the project's own backend.
 
 ### Environment Variables
 File: `backend/.env` (do not commit — see `backend/.env.example`)
-
----
-
-## Cron Jobs (`backend/routes/routes.js`)
-
-| Job | Schedule | Status |
-|---|---|---|
-| `userBUSDDepositCheck` | `* * * * *` (every minute) | **DISABLED** — was hitting BSC mainnet unnecessarily |
-
-> If re-enabled, confirm it is actually needed before deploying.
 
 ---
 
@@ -343,13 +335,9 @@ const SwapView = lazy(() => import("../views/SwapView"));
 ### TypeScript
 Always verify with `npx tsc --noEmit` before considering a change complete. The project has no automated tests.
 
-### Images in Profile.tsx
-Profile images (banner1, banner2, default-profile) are now imported via webpack:
-```tsx
-import banner1 from "../../assets/banners/banner1.png";
-// In JSX: src={banner1}
-```
-Previously used raw string paths (`src="/banner1.png"`) that depended on `public/`.
+### Environment variables
+- Frontend: root `.env` (see `.env.example`) — `REACT_APP_API_URL` for the backend base URL
+- Backend: `backend/.env` (see `backend/.env.example`) — JWT secret, etc.
 
 ---
 
@@ -439,6 +427,42 @@ Previously used raw string paths (`src="/banner1.png"`) that depended on `public
 - Replaced generic PNG favicon with custom `favicon.jpeg`
 - `index.html` updated: `type="image/jpeg"`, both `rel="icon"` and `rel="apple-touch-icon"` point to `favicon.jpeg`
 - `theme-color` meta updated to `#03030f` (matches app background)
+- Final iteration: `public/logoFN.ico` is the favicon (`image/x-icon`), `apple-touch-icon.png` (180×180) generated from it; `manifest.json` references both
+
+### Prediction view removed
+- `/prediction` route and `Dashboard` import removed from `Router.tsx` (file `Dashboard.tsx` kept but orphaned)
+- README views table updated: removed `/prediction`, added `/liquidity`; README logo now points to `public/apple-touch-icon.png`
+
+### Header — logo robustness fix
+- Logo `<img>` now uses fixed `h-11` instead of inheriting `h-full` from the Link — the height chain was fragile and could collapse on other machines/browsers (logo disappeared on route change for a collaborator)
+
+### SwapView — real AMM integration (production-ready)
+- `getAmountsOut` added to `ROUTER_ABI`; quotes now come from the PancakeSwap V2 router via a public BSC RPC (`bscProvider`), debounced 350ms, with CoinGecko price fallback (`quoteSource: "amm" | "estimate"`)
+- `buildPath()` routes every swap: BNB→token `[WBNB, t]`, token→BNB `[t, WBNB]`, token→token `[a, WBNB, b]` (direct ERC20 pairs often don't exist)
+- `executeSwap` re-quotes fresh before sending; `amountOutMin` derived from the on-chain quote in basis points (no float precision loss)
+- **Price impact**: computed by comparing the trade quote vs a 1/1000-size baseline quote; shown color-coded in the rate panel, warning at ≥5%, button blocks trades at >15% ("Price impact too high")
+- "To" field shows ≈USD value; "No liquidity for this pair" button state when quoting fails entirely
+- Flip sides (`handleSwapSides`) clears stale `toAmount` so the skeleton shows until the fresh quote arrives
+- Confirmed swaps are recorded in the backend via `pgCreateTransaction` (`POST /api/pg/transactions`) when a `pg_token` session exists
+
+### API base URL configurable
+- `pg.api.service.ts`: `BASE` now reads `process.env.REACT_APP_API_URL` (falls back to `http://localhost:1357`); root `.env.example` added
+
+### Full audit fixes (all views)
+- **LiquidityView — Remove Liquidity slippage bug**: `amountAMin/amountBMin` were hardcoded `0` (sandwich-attack exposure). Now computed from pair `getReserves()` + `totalSupply()` with the user's slippage applied in basis points
+- **LiquidityView — real TVL**: fake hardcoded `tvl/vol24h/apr` removed from `POOLS`. `PoolsTab` reads `getReserves()` via a read-only BSC provider and shows live TVL (reserves × CoinGecko prices) + a "Pooled Tokens" column with real reserves
+- **NFTView — all controls functional**: search wired (NFTs + collections), per-NFT categories that actually filter, Collections view (floor/volume/items cards), functional bid modal with min-bid validation, live per-second countdown (`useNow`), See All expands sellers, sellers deduplicated
+- **OverviewView**: search wired to the tokens table (with empty state), "Tokens" tab shows top 50, dead "Pools" tab removed (duplicated /liquidity), "Total Liquidity" renamed to "Global Market Cap" (what it actually shows), volume bar chart now uses real BTC volume data via new `fetchCoinVolumeChart()` in coingecko.service (same endpoint, shared cache)
+- **BlogView**: Load More pagination via backend `offset`, server-side `?category=` filtering, post-detail modal using previously-unused `GET /api/pg/blog/:id` (`pgGetBlogPost` added to service), dead "View all" links removed, misleading "create posts" copy fixed
+- **CoinDetailsView**: `alert()` calls replaced — unauthenticated favorite click opens the shared AuthModal in place; errors show as an auto-dismissing toast
+- **Shared AuthModal**: extracted from BlogView to `src/components/auth/AuthModal.tsx`, used by Blog and Coins
+
+### Legacy code removal
+- **Frontend dead code deleted**: `views/Dashboard.tsx`, `components/{Leaderboard,Timer,WinnerCardComponent,Spinner}.tsx`, `components/card/`, `components/winner/`
+- **Legacy MySQL auth system deleted** (backend MySQL is not installed; the flow was dead and unlinked from the UI): `GoogleLogin/GoogleRedirect` views, `components/profile/`, `components/auth/{Login,Register,ForgotPassword,ChangePassword,ResetPassword}.tsx`, `components/helper/{PrivateRoutes,PublicRoutes}.tsx`, `hooks/useAuth.ts`, `services/{auth,axios,common}.service.ts`, `contexts/AuthContext.tsx`. Routes removed from `Router.tsx`; `AuthContextProvider` removed from `App.tsx`. The working JWT+SQLite auth (`pg_token`) is now the single auth system
+- **backend/app.js rewritten minimal**: only mounts `/api/pg` (SQLite). Removed MySQL pool, socket.io ticket chat, `/test` private-key endpoint, node-cron, crypto-js, and the legacy `/api/` routes mount. NOTE: legacy backend files (`models/`, most `controllers/`, most `routes/`, `config.js`) still exist on disk but are no longer required by anything — user declined deleting them
+- **index.html**: removed unused CDN tags (Font Awesome, Heroicons, Lucide) — zero usages in src/
+- Verified: `tsc --noEmit` clean, backend loads (`node -e "require('./app.js')"`), production build (`react-app-rewired build`) succeeds
 
 ---
 
