@@ -1,4 +1,4 @@
-<img src="src/assets/logo/logoNovaFi.png" alt="novaFi" width="180" />
+<img src="public/apple-touch-icon.png" alt="novaFi" width="120" />
 
 [![Styled With Prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg)](https://prettier.io/)
 
