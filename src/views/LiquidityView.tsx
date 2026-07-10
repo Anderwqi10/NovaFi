@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useWeb3React } from "@web3-react/core";
-import { Contract } from "ethers";
+import { Contract, providers } from "ethers";
 import { parseUnits, formatUnits } from "ethers/lib/utils";
 import { useTokenBalance } from "../hooks/useTokenBalance";
 import { useSwitchChain } from "../hooks/useSwitchChain";
@@ -36,15 +36,15 @@ const PAIR_ABI = [
 
 const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
+// Read-only provider so pool data loads without a connected wallet
+const bscReadProvider = new providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+
 // ─── Pool definitions ─────────────────────────────────────────────────────────
 
 interface PoolDef {
   tokenA: Token;
   tokenB: Token;
   pairAddress: string;
-  tvl: number;
-  vol24h: number;
-  apr: number;
 }
 
 const BNB  = TOKENS[0];
@@ -55,13 +55,20 @@ const BTCB = TOKENS[5];
 const CAKE = TOKENS[6];
 
 const POOLS: PoolDef[] = [
-  { tokenA: BNB,  tokenB: BUSD, pairAddress: "0x58F876857a02D6762E0101bb5C46A8c1ED44Dc16", tvl: 280_000_000, vol24h: 45_000_000, apr: 18.5 },
-  { tokenA: BNB,  tokenB: USDT, pairAddress: "0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE", tvl: 165_000_000, vol24h: 32_000_000, apr: 22.3 },
-  { tokenA: BNB,  tokenB: ETH,  pairAddress: "0x74E4716E431f45807DCF19f284c7aA99F18a4fbc", tvl: 48_000_000,  vol24h: 12_000_000, apr: 15.8 },
-  { tokenA: BNB,  tokenB: BTCB, pairAddress: "0x61EB789d75A95CAa3fF50ed7E47b96c132fEc082", tvl: 35_000_000,  vol24h: 8_500_000,  apr: 12.4 },
-  { tokenA: BNB,  tokenB: CAKE, pairAddress: "0x0eD7e52944161450477ee417DE9Cd3a859b14fD0", tvl: 92_000_000,  vol24h: 28_000_000, apr: 35.2 },
-  { tokenA: USDT, tokenB: BUSD, pairAddress: "0x7EFaEf62fDdCCa950418312c6C91Aef321375A00", tvl: 220_000_000, vol24h: 95_000_000, apr: 8.1  },
+  { tokenA: BNB,  tokenB: BUSD, pairAddress: "0x58F876857a02D6762E0101bb5C46A8c1ED44Dc16" },
+  { tokenA: BNB,  tokenB: USDT, pairAddress: "0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE" },
+  { tokenA: BNB,  tokenB: ETH,  pairAddress: "0x74E4716E431f45807DCF19f284c7aA99F18a4fbc" },
+  { tokenA: BNB,  tokenB: BTCB, pairAddress: "0x61EB789d75A95CAa3fF50ed7E47b96c132fEc082" },
+  { tokenA: BNB,  tokenB: CAKE, pairAddress: "0x0eD7e52944161450477ee417DE9Cd3a859b14fD0" },
+  { tokenA: USDT, tokenB: BUSD, pairAddress: "0x7EFaEf62fDdCCa950418312c6C91Aef321375A00" },
 ];
+
+// Live on-chain pool data (reserves → TVL)
+interface PoolLive {
+  reserveA: number;
+  reserveB: number;
+  tvl: number | null; // null while token prices are unknown
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -145,7 +152,46 @@ function PairLogos({ a, b }: { a: Token; b: Token }) {
 
 // ─── Pools Tab ────────────────────────────────────────────────────────────────
 
-function PoolsTab({ onAddLiquidity }: { onAddLiquidity: (pool: PoolDef) => void }) {
+const fmtQty = (n: number) =>
+  n >= 1e6 ? `${(n / 1e6).toFixed(2)}M`
+  : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K`
+  : n.toFixed(2);
+
+function PoolsTab({
+  onAddLiquidity,
+  tokenPrices,
+}: {
+  onAddLiquidity: (pool: PoolDef) => void;
+  tokenPrices: Record<string, number>;
+}) {
+  const [live, setLive] = useState<Record<string, PoolLive | null>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        POOLS.map(async (pool): Promise<[string, PoolLive | null]> => {
+          try {
+            const pair = new Contract(pool.pairAddress, PAIR_ABI, bscReadProvider);
+            const [reserves, token0] = await Promise.all([pair.getReserves(), pair.token0()]);
+            const addrA = (pool.tokenA.address ?? WBNB).toLowerCase();
+            const aIsToken0 = addrA === token0.toLowerCase();
+            const reserveA = parseFloat(formatUnits(aIsToken0 ? reserves[0] : reserves[1], pool.tokenA.decimals));
+            const reserveB = parseFloat(formatUnits(aIsToken0 ? reserves[1] : reserves[0], pool.tokenB.decimals));
+            const pA = tokenPrices[pool.tokenA.coingeckoId];
+            const pB = tokenPrices[pool.tokenB.coingeckoId];
+            const tvl = pA && pB ? reserveA * pA + reserveB * pB : null;
+            return [pool.pairAddress, { reserveA, reserveB, tvl }];
+          } catch {
+            return [pool.pairAddress, null];
+          }
+        })
+      );
+      if (!cancelled) setLive(Object.fromEntries(results));
+    })();
+    return () => { cancelled = true; };
+  }, [tokenPrices]);
+
   return (
     <div className="rounded-2xl overflow-hidden border border-indigo-900/40"
       style={{ background: "linear-gradient(160deg, #0f0f2e 0%, #0c0c24 40%, #080818 100%)" }}
@@ -164,7 +210,7 @@ function PoolsTab({ onAddLiquidity }: { onAddLiquidity: (pool: PoolDef) => void 
         <table className="w-full min-w-[560px]">
           <thead>
             <tr style={{ background: "linear-gradient(90deg, rgba(99,102,241,0.12) 0%, rgba(6,182,212,0.06) 100%)" }}>
-              {["Pool", "TVL", "Volume 24H", "APR", ""].map((h) => (
+              {["Pool", "TVL", "Pooled Tokens", ""].map((h) => (
                 <th key={h} className="text-left text-slate-500 text-xs font-semibold uppercase tracking-wider px-5 py-3.5 border-b border-indigo-900/30">{h}</th>
               ))}
             </tr>
@@ -186,10 +232,26 @@ function PoolsTab({ onAddLiquidity }: { onAddLiquidity: (pool: PoolDef) => void 
                     </div>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-slate-300 text-sm font-medium">{fmtNum(pool.tvl)}</td>
-                <td className="px-5 py-4 text-slate-400 text-sm">{fmtNum(pool.vol24h)}</td>
-                <td className="px-5 py-4">
-                  <span className="text-emerald-400 text-sm font-semibold">{pool.apr}%</span>
+                <td className="px-5 py-4 text-slate-300 text-sm font-medium">
+                  {live[pool.pairAddress] === undefined ? (
+                    <div className="h-4 w-16 rounded bg-indigo-900/20 animate-pulse" />
+                  ) : live[pool.pairAddress]?.tvl != null ? (
+                    fmtNum(live[pool.pairAddress]!.tvl!)
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td className="px-5 py-4 text-slate-400 text-xs">
+                  {live[pool.pairAddress] ? (
+                    <>
+                      <div>{fmtQty(live[pool.pairAddress]!.reserveA)} {pool.tokenA.symbol}</div>
+                      <div>{fmtQty(live[pool.pairAddress]!.reserveB)} {pool.tokenB.symbol}</div>
+                    </>
+                  ) : live[pool.pairAddress] === undefined ? (
+                    <div className="h-4 w-20 rounded bg-indigo-900/20 animate-pulse" />
+                  ) : (
+                    "—"
+                  )}
                 </td>
                 <td className="px-5 py-4">
                   <button
@@ -476,6 +538,21 @@ function RemoveModal({ position, slippage, onClose }: {
       setTxError(null);
       const lpPair = new Contract(position.pool.pairAddress, PAIR_ABI, signer);
       const lpAmount = position.lpBalanceRaw.mul(pct).div(100);
+      const { tokenA, tokenB } = position.pool;
+
+      // Expected output from pool reserves, then apply slippage tolerance
+      const [reserves, totalSupply, token0] = await Promise.all([
+        lpPair.getReserves(),
+        lpPair.totalSupply(),
+        lpPair.token0(),
+      ]);
+      const addrA = (tokenA.address ?? WBNB).toLowerCase();
+      const aIsToken0 = addrA === token0.toLowerCase();
+      const reserveA = aIsToken0 ? reserves[0] : reserves[1];
+      const reserveB = aIsToken0 ? reserves[1] : reserves[0];
+      const bps = 10000 - Math.round(slippage * 100);
+      const minA = reserveA.mul(lpAmount).div(totalSupply).mul(bps).div(10000);
+      const minB = reserveB.mul(lpAmount).div(totalSupply).mul(bps).div(10000);
 
       const allowance = await lpPair.allowance(account, PANCAKE_ROUTER_V2);
       if (allowance.lt(lpAmount)) {
@@ -485,15 +562,14 @@ function RemoveModal({ position, slippage, onClose }: {
 
       setTxState("pending");
       const router = new Contract(PANCAKE_ROUTER_V2, ROUTER_ABI, signer);
-      const { tokenA, tokenB } = position.pool;
       let tx: any;
 
       if (!tokenA.address && tokenB.address) {
-        tx = await router.removeLiquidityETH(tokenB.address, lpAmount, 0, 0, account, deadline);
+        tx = await router.removeLiquidityETH(tokenB.address, lpAmount, minB, minA, account, deadline);
       } else if (tokenA.address && !tokenB.address) {
-        tx = await router.removeLiquidityETH(tokenA.address, lpAmount, 0, 0, account, deadline);
+        tx = await router.removeLiquidityETH(tokenA.address, lpAmount, minA, minB, account, deadline);
       } else {
-        tx = await router.removeLiquidity(tokenA.address, tokenB.address, lpAmount, 0, 0, account, deadline);
+        tx = await router.removeLiquidity(tokenA.address, tokenB.address, lpAmount, minA, minB, account, deadline);
       }
 
       setTxHash(tx.hash);
@@ -740,7 +816,7 @@ export default function LiquidityView() {
         })}
       </div>
 
-      {activeTab === "pools" && <PoolsTab onAddLiquidity={handleAddFromPool} />}
+      {activeTab === "pools" && <PoolsTab onAddLiquidity={handleAddFromPool} tokenPrices={tokenPrices} />}
       {activeTab === "add"   && <AddLiquidityTab initialPool={selectedPool} tokenPrices={tokenPrices} slippage={slippage} />}
       {activeTab === "positions" && <MyPositionsTab tokenPrices={tokenPrices} />}
     </div>
