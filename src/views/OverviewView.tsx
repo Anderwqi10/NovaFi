@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useLiveData } from "../hooks/useLiveData";
-import { fetchTopCoins, fetchGlobal, fetchCoinChart, CoinMarket } from "../services/coingecko.service";
+import { fetchTopCoins, fetchGlobal, fetchCoinChart, fetchCoinVolumeChart, CoinMarket } from "../services/coingecko.service";
 
 const fmt = (n: number) =>
   n >= 1e12 ? `$${(n / 1e12).toFixed(2)}T`
@@ -52,19 +52,27 @@ const SparkLine = ({ prices, positive }: { prices: number[]; positive: boolean }
 };
 
 export default function OverviewView() {
-  const [activeTab, setActiveTab] = useState("Overview");
+  const [activeTab, setActiveTab] = useState<"Overview" | "Tokens">("Overview");
+  const [search, setSearch] = useState("");
 
   const globalFetcher = useCallback(() => fetchGlobal(), []);
-  const coinsFetcher = useCallback(() => fetchTopCoins(10), []);
+  const coinsFetcher = useCallback(() => fetchTopCoins(activeTab === "Tokens" ? 50 : 10), [activeTab]);
   const chartFetcher = useCallback(() => fetchCoinChart("bitcoin", 1), []);
+  const volumeFetcher = useCallback(() => fetchCoinVolumeChart("bitcoin", 1), []);
 
   const { data: global, loading: gLoading, lastUpdated: gUpdated } = useLiveData(globalFetcher);
   const { data: coins, loading: cLoading, lastUpdated: cUpdated } = useLiveData(coinsFetcher);
   const { data: chartData, loading: chLoading } = useLiveData(chartFetcher);
+  const { data: volumeData, loading: vLoading } = useLiveData(volumeFetcher);
 
-  const barData = chartData
-    ? chartData.filter((_, i) => i % 3 === 0).map((d) => ({ t: d.time, v: d.price }))
+  const barData = volumeData
+    ? volumeData.filter((_, i) => i % 3 === 0).map((d) => ({ t: d.time, v: d.price }))
     : [];
+
+  const q = search.trim().toLowerCase();
+  const filteredCoins = (coins ?? []).filter(
+    (c) => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-8 py-6">
@@ -72,7 +80,7 @@ export default function OverviewView() {
       {/* Top bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex gap-1">
-          {["Overview", "Pools", "Tokens"].map((tab) => (
+          {(["Overview", "Tokens"] as const).map((tab) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab
@@ -82,23 +90,33 @@ export default function OverviewView() {
             >{tab}</button>
           ))}
         </div>
-        <div className="flex items-center gap-2 bg-[#0c0c24] border border-indigo-900/40 rounded-xl px-4 py-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2 bg-[#0c0c24] border border-indigo-900/40 rounded-xl px-4 py-2.5 w-full sm:w-auto focus-within:border-cyan-500/40 transition-colors">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="#64748b" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
           </svg>
-          <input placeholder="Search tokens..." className="bg-transparent text-sm text-slate-300 outline-none placeholder-slate-600 flex-1" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search tokens..."
+            className="bg-transparent text-sm text-slate-300 outline-none placeholder-slate-600 flex-1"
+          />
+          {search && (
+            <button onClick={() => setSearch("")} className="text-slate-600 hover:text-white text-xs transition-colors">✕</button>
+          )}
         </div>
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — Overview tab only */}
+      {activeTab === "Overview" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <div className="rounded-2xl border border-indigo-900/40 bg-[#0c0c24] p-6">
           <div className="flex items-start justify-between mb-1">
             <div>
-              <p className="text-slate-500 text-sm mb-1">Total Liquidity</p>
+              <p className="text-slate-500 text-sm mb-1">Global Market Cap</p>
               {gLoading ? <Skeleton w="w-44" /> : (
                 <p className="text-3xl font-bold text-slate-100">{global ? fmt(global.total_market_cap.usd) : "—"}</p>
               )}
+              <p className="text-slate-600 text-xs mt-1">Chart: BTC price · 24h</p>
             </div>
             {gUpdated && <span className="text-slate-600 text-xs mt-1 shrink-0">{gUpdated.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</span>}
           </div>
@@ -129,16 +147,17 @@ export default function OverviewView() {
               {gLoading ? <Skeleton w="w-36" /> : (
                 <p className="text-3xl font-bold text-slate-100">{global ? fmt(global.total_volume.usd) : "—"}</p>
               )}
+              <p className="text-slate-600 text-xs mt-1">Chart: BTC trading volume · 24h</p>
             </div>
             {gUpdated && <span className="text-slate-600 text-xs mt-1 shrink-0">{gUpdated.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</span>}
           </div>
-          {chLoading ? <Spinner /> : (
+          {vLoading ? <Spinner /> : (
             <div className="h-48 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <XAxis dataKey="t" tick={{ fill: "#475569", fontSize: 10 }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                   <YAxis hide />
-                  <Tooltip contentStyle={TIP} formatter={(v: any) => [`$${Number(v).toLocaleString()}`, "Price"]} />
+                  <Tooltip contentStyle={TIP} formatter={(v: any) => [fmt(Number(v)), "BTC Volume"]} />
                   <Bar dataKey="v" fill="rgba(99,102,241,0.5)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -146,6 +165,7 @@ export default function OverviewView() {
           )}
         </div>
       </div>
+      )}
 
       {/* Top Tokens Table */}
       <div className="rounded-2xl overflow-hidden border border-indigo-900/40"
@@ -158,7 +178,7 @@ export default function OverviewView() {
           <div className="absolute bottom-0 left-0 right-0 h-px"
             style={{ background: "linear-gradient(90deg, transparent, rgba(6,182,212,0.4), rgba(124,58,237,0.4), transparent)" }}
           />
-          <h2 className="text-slate-100 font-bold text-lg">Top Tokens</h2>
+          <h2 className="text-slate-100 font-bold text-lg">{activeTab === "Tokens" ? "Top 50 Tokens" : "Top Tokens"}</h2>
           <div className="flex items-center gap-3">
             {cUpdated && <span className="text-slate-600 text-xs hidden sm:block">Updated {cUpdated.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}</span>}
             <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Live · 30s</span>
@@ -185,7 +205,14 @@ export default function OverviewView() {
                       ))}
                     </tr>
                   ))
-                : (coins ?? []).map((coin: CoinMarket, i: number) => {
+                : filteredCoins.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-10 text-center text-slate-600 text-sm">
+                        No tokens match "{search}"
+                      </td>
+                    </tr>
+                  )
+                : filteredCoins.map((coin: CoinMarket, i: number) => {
                     const pos = coin.price_change_percentage_24h >= 0;
                     return (
                       <tr key={coin.id}

@@ -10,6 +10,7 @@ import {
   pgRemoveFavorite,
   getStoredUser,
 } from "../services/pg.api.service";
+import AuthModal from "../components/auth/AuthModal";
 
 const coins = [
   { id: "bitcoin", label: "Bitcoin", symbol: "BTC", icon: "₿", color: "#f7931a" },
@@ -47,7 +48,9 @@ export default function CoinDetailsView() {
   const [activeTime, setActiveTime] = useState(timeOptions[0]);
   const [favIds, setFavIds] = useState<Set<string>>(new Set());
   const [favLoading, setFavLoading] = useState(false);
-  const isLoggedIn = !!getStoredUser();
+  const [favError, setFavError] = useState("");
+  const [showAuth, setShowAuth] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!getStoredUser());
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -56,12 +59,19 @@ export default function CoinDetailsView() {
     }).catch(() => {});
   }, [isLoggedIn]);
 
+  useEffect(() => {
+    if (!favError) return;
+    const id = setTimeout(() => setFavError(""), 4000);
+    return () => clearTimeout(id);
+  }, [favError]);
+
   const toggleFavorite = async () => {
     if (!isLoggedIn) {
-      alert("Sign in from the Blog tab to save favorites.");
+      setShowAuth(true);
       return;
     }
     setFavLoading(true);
+    setFavError("");
     try {
       if (favIds.has(activeCoin.id)) {
         await pgRemoveFavorite(activeCoin.id);
@@ -71,7 +81,7 @@ export default function CoinDetailsView() {
         setFavIds((prev) => new Set(Array.from(prev).concat(activeCoin.id)));
       }
     } catch {
-      alert("Error updating favorites");
+      setFavError("Could not update favorites — check your connection");
     } finally {
       setFavLoading(false);
     }
@@ -98,6 +108,17 @@ export default function CoinDetailsView() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-8 py-6">
+      {showAuth && (
+        <AuthModal onClose={() => setShowAuth(false)} onAuth={() => setIsLoggedIn(true)} />
+      )}
+
+      {/* Error toast */}
+      {favError && (
+        <div className="fixed top-20 right-4 z-50 rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-3 text-red-400 text-sm shadow-lg backdrop-blur">
+          {favError}
+        </div>
+      )}
+
       {/* Header row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
         <h1 className="text-slate-100 text-2xl font-bold">Coin Details</h1>

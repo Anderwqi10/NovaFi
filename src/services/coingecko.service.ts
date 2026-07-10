@@ -58,6 +58,18 @@ export async function fetchCoinChart(
   }));
 }
 
+export async function fetchCoinVolumeChart(
+  coinId: string,
+  days: number | string = 1
+): Promise<ChartPoint[]> {
+  const url = `${BASE}/coins/${coinId}/market_chart?vs_currency=usd&days=${days}`;
+  const json = await cachedFetch<{ total_volumes: [number, number][] }>(url);
+  return json.total_volumes.map(([ts, vol]) => ({
+    time: new Date(ts).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }),
+    price: Math.round(vol),
+  }));
+}
+
 export interface CoinDetail {
   image: { small: string; large: string };
   description: { en: string };
