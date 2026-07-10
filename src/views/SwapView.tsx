@@ -4,8 +4,8 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useWeb3React } from "@web3-react/core";
-import { Contract } from "ethers";
-import { parseUnits } from "ethers/lib/utils";
+import { Contract, providers } from "ethers";
+import { parseUnits, formatUnits } from "ethers/lib/utils";
 import { useLiveData } from "../hooks/useLiveData";
 import { useTokenBalance } from "../hooks/useTokenBalance";
 import { useSwitchChain } from "../hooks/useSwitchChain";
@@ -14,11 +14,13 @@ import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
 import ConnectWallet from "../components/auth/ConnectWallet";
 import { CRYPTO_LOGOS } from "../assets/crypto-icons";
+import { pgCreateTransaction } from "../services/pg.api.service";
 
 const ROUTER_ABI = [
   "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)",
   "function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
   "function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
+  "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
 ];
 
 const ERC20_ABI = [
@@ -28,6 +30,22 @@ const ERC20_ABI = [
 ];
 
 const SLIPPAGE_PRESETS = [0.1, 0.5, 1.0];
+
+const bscProvider = new providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+
+const buildPath = (from: Token, to: Token): string[] => {
+  if (!from.address) return [WBNB, to.address!];
+  if (!to.address) return [from.address, WBNB];
+  return [from.address, WBNB, to.address!];
+};
+
+const sanitizeAmount = (val: string, decimals: number): string => {
+  const parts = val.split(".");
+  if (parts.length === 2 && parts[1].length > decimals) {
+    return `${parts[0]}.${parts[1].slice(0, decimals)}`;
+  }
+  return val;
+};
 
 const TIME_OPTIONS: { label: string; days: number | string }[] = [
   { label: "1H", days: 0.04 },
@@ -275,6 +293,9 @@ export default function SwapView() {
 
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
   const [pricesLoading, setPricesLoading] = useState(false);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [priceImpact, setPriceImpact] = useState<number | null>(null);
+  const [quoteSource, setQuoteSource] = useState<"amm" | "estimate" | null>(null);
 
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
@@ -317,18 +338,72 @@ export default function SwapView() {
     return () => clearInterval(interval);
   }, []);
 
-  // ── Recalculate toAmount when inputs change ────────────────────────────────
+  // ── Get real AMM quote via getAmountsOut (debounced 350ms) ───────────────
   useEffect(() => {
-    if (!fromAmount || !toToken || isNaN(parseFloat(fromAmount))) {
+    const amount = parseFloat(fromAmount);
+    if (!fromAmount || !toToken || isNaN(amount) || amount <= 0) {
       setToAmount("");
+      setPriceImpact(null);
+      setQuoteSource(null);
+      setQuoteLoading(false);
       return;
     }
-    const fromPrice = tokenPrices[fromToken.coingeckoId];
-    const toPrice   = tokenPrices[toToken.coingeckoId];
-    if (!fromPrice || !toPrice) { setToAmount(""); return; }
 
-    const raw = (parseFloat(fromAmount) * fromPrice) / toPrice;
-    setToAmount(raw.toFixed(6));
+    setQuoteLoading(true);
+    let cancelled = false;
+
+    const fetchQuote = async () => {
+      try {
+        const amountIn = parseUnits(sanitizeAmount(fromAmount, fromToken.decimals), fromToken.decimals);
+        const path = buildPath(fromToken, toToken);
+        const router = new Contract(PANCAKE_ROUTER_V2, ROUTER_ABI, bscProvider);
+
+        // Quote for the real amount + a tiny baseline amount to derive the
+        // spot price, so price impact = how much the trade moves the pool
+        const baseIn = amountIn.div(1000);
+        const [amounts, baseAmounts] = await Promise.all([
+          router.getAmountsOut(amountIn, path),
+          baseIn.isZero() ? Promise.resolve(null) : router.getAmountsOut(baseIn, path),
+        ]);
+
+        if (cancelled) return;
+
+        const out = parseFloat(formatUnits(amounts[amounts.length - 1], toToken.decimals));
+        setToAmount(out.toFixed(6));
+        setQuoteSource("amm");
+
+        if (baseAmounts) {
+          const baseOut = parseFloat(formatUnits(baseAmounts[baseAmounts.length - 1], toToken.decimals));
+          const spotOut = baseOut * 1000;
+          const impact = spotOut > 0 ? Math.max(0, (1 - out / spotOut) * 100) : null;
+          setPriceImpact(impact);
+        } else {
+          setPriceImpact(null);
+        }
+      } catch {
+        // fallback to CoinGecko prices if AMM call fails
+        if (!cancelled) {
+          const fromPrice = tokenPrices[fromToken.coingeckoId];
+          const toPrice   = tokenPrices[toToken.coingeckoId];
+          if (fromPrice && toPrice) {
+            setToAmount(((amount * fromPrice) / toPrice).toFixed(6));
+            setQuoteSource("estimate");
+          } else {
+            setToAmount("");
+            setQuoteSource(null);
+          }
+          setPriceImpact(null);
+        }
+      } finally {
+        if (!cancelled) setQuoteLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchQuote, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [fromAmount, fromToken, toToken, tokenPrices]);
 
   // ── Swap token sides ───────────────────────────────────────────────────────
@@ -338,34 +413,31 @@ export default function SwapView() {
     setFromToken(toToken);
     setToToken(prev);
     setFromAmount(toAmount);
+    setToAmount("");
+    setPriceImpact(null);
   };
 
   // ── Swap execution ─────────────────────────────────────────────────────────
   const executeSwap = async () => {
     if (!account || !provider || !toToken || !fromAmount) return;
 
-    const fromFloat  = parseFloat(fromAmount);
-    const toFloat    = parseFloat(toAmount);
-    if (isNaN(fromFloat) || fromFloat <= 0 || isNaN(toFloat) || toFloat <= 0) return;
-
-    const sanitize = (val: string, dec: number) => {
-      const parts = val.split(".");
-      if (parts.length === 2 && parts[1].length > dec) {
-        return `${parts[0]}.${parts[1].slice(0, dec)}`;
-      }
-      return val;
-    };
+    const fromFloat = parseFloat(fromAmount);
+    if (isNaN(fromFloat) || fromFloat <= 0) return;
 
     try {
       setTxError(null);
       const signer = (provider as any).getSigner();
-      const fromAmountWei  = parseUnits(sanitize(fromAmount, fromToken.decimals), fromToken.decimals);
-      const amountOutMin   = parseUnits(
-        sanitize((toFloat * (1 - slippage / 100)).toFixed(8), toToken.decimals),
-        toToken.decimals
-      );
+      const fromAmountWei = parseUnits(sanitizeAmount(fromAmount, fromToken.decimals), fromToken.decimals);
+      const path = buildPath(fromToken, toToken);
       const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
       const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+      // Fresh quote from AMM for accurate amountOutMin
+      const readRouter = new Contract(PANCAKE_ROUTER_V2, ROUTER_ABI, bscProvider);
+      const amounts = await readRouter.getAmountsOut(fromAmountWei, path);
+      const expectedOut = amounts[amounts.length - 1];
+      const slippageBps = Math.round(slippage * 100);
+      const amountOutMin = expectedOut.mul(10000 - slippageBps).div(10000);
 
       let tx: any;
 
@@ -375,7 +447,7 @@ export default function SwapView() {
         const router = new Contract(PANCAKE_ROUTER_V2, ROUTER_ABI, signer);
         tx = await router.swapExactETHForTokens(
           amountOutMin,
-          [WBNB, toToken.address!],
+          path,
           account,
           deadline,
           { value: fromAmountWei }
@@ -394,12 +466,12 @@ export default function SwapView() {
         tx = await router.swapExactTokensForETH(
           fromAmountWei,
           amountOutMin,
-          [fromToken.address!, WBNB],
+          path,
           account,
           deadline
         );
       } else {
-        // ERC20 → ERC20
+        // ERC20 → ERC20 (routed via WBNB)
         const tokenContract = new Contract(fromToken.address, ERC20_ABI, signer);
         const allowance = await tokenContract.allowance(account, PANCAKE_ROUTER_V2);
         if (allowance.lt(fromAmountWei)) {
@@ -412,7 +484,7 @@ export default function SwapView() {
         tx = await router.swapExactTokensForTokens(
           fromAmountWei,
           amountOutMin,
-          [fromToken.address!, toToken.address!],
+          path,
           account,
           deadline
         );
@@ -421,6 +493,19 @@ export default function SwapView() {
       setTxHash(tx.hash);
       await tx.wait();
       setTxState("success");
+
+      // Record the confirmed swap in the backend (only for logged-in users)
+      if (localStorage.getItem("pg_token")) {
+        pgCreateTransaction({
+          type: "swap",
+          coin_id: fromToken.coingeckoId,
+          coin_symbol: `${fromToken.symbol}/${toToken.symbol}`,
+          amount_usd: fromFloat * (tokenPrices[fromToken.coingeckoId] ?? 0),
+          amount_coin: fromFloat,
+          tx_hash: tx.hash,
+        }).catch(() => {});
+      }
+
       setFromAmount("");
     } catch (err: any) {
       setTxState("error");
@@ -448,8 +533,12 @@ export default function SwapView() {
       return { label: "Enter an amount", disabled: true, action: () => {} };
     if (fromToken.id === toToken.id)
       return { label: "Select different tokens", disabled: true, action: () => {} };
+    if (!quoteLoading && !toAmount && quoteSource === null)
+      return { label: "No liquidity for this pair", disabled: true, action: () => {} };
     if (fromBalance !== null && parseFloat(fromAmount) > parseFloat(fromBalance))
       return { label: "Insufficient balance", disabled: true, action: () => {} };
+    if (priceImpact !== null && priceImpact > 15)
+      return { label: "Price impact too high", disabled: true, action: () => {} };
     if (txState === "approving")
       return { label: "Approving…", disabled: true, action: () => {} };
     if (txState === "pending")
@@ -463,12 +552,15 @@ export default function SwapView() {
   const fromPrice  = tokenPrices[fromToken.coingeckoId];
   const toPrice    = toToken ? tokenPrices[toToken.coingeckoId] : 0;
   const usdValue   = fromAmount && fromPrice ? (parseFloat(fromAmount) * fromPrice).toLocaleString("en", { maximumFractionDigits: 2 }) : null;
+  const toUsdValue = toAmount && toPrice ? (parseFloat(toAmount) * toPrice).toLocaleString("en", { maximumFractionDigits: 2 }) : null;
   const minReceived = toAmount && toToken
     ? (parseFloat(toAmount) * (1 - slippage / 100)).toFixed(6)
     : null;
-  const rate = fromPrice && toPrice && toToken
-    ? `1 ${fromToken.symbol} = ${(fromPrice / toPrice).toFixed(6)} ${toToken.symbol}`
-    : null;
+  const rate = toAmount && fromAmount && parseFloat(fromAmount) > 0 && toToken
+    ? `1 ${fromToken.symbol} = ${(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} ${toToken.symbol}`
+    : fromPrice && toPrice && toToken
+      ? `1 ${fromToken.symbol} = ${(fromPrice / toPrice).toFixed(6)} ${toToken.symbol}`
+      : null;
 
   return (
     <>
@@ -637,7 +729,7 @@ export default function SwapView() {
                 )}
               </div>
               <div className="flex items-center gap-3 mt-2">
-                {pricesLoading && fromAmount ? (
+                {quoteLoading ? (
                   <div className="h-8 w-28 rounded bg-indigo-900/20 animate-pulse flex-1" />
                 ) : (
                   <span className={`text-2xl font-semibold flex-1 ${toAmount ? "text-slate-100" : "text-slate-600"}`}>
@@ -672,15 +764,31 @@ export default function SwapView() {
                   )}
                 </button>
               </div>
+              {toUsdValue && (
+                <p className="text-slate-600 text-xs mt-1.5">≈ ${toUsdValue} USD</p>
+              )}
             </div>
 
             {/* Rate info */}
             {rate && (
               <div className="rounded-xl bg-indigo-950/30 border border-indigo-900/30 px-4 py-3 mb-4 flex flex-col gap-1.5 text-xs">
                 <div className="flex justify-between text-slate-400">
-                  <span>Rate</span>
+                  <span>Rate {quoteSource === "estimate" && <span className="text-slate-600">(estimated)</span>}</span>
                   <span className="text-slate-300 font-medium">{rate}</span>
                 </div>
+                {priceImpact !== null && (
+                  <div className="flex justify-between text-slate-400">
+                    <span>Price impact</span>
+                    <span className={`font-medium ${
+                      priceImpact < 1 ? "text-emerald-400"
+                      : priceImpact < 3 ? "text-slate-300"
+                      : priceImpact < 5 ? "text-yellow-400"
+                      : "text-red-400"
+                    }`}>
+                      {priceImpact < 0.01 ? "<0.01" : priceImpact.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
                 {minReceived && toToken && (
                   <div className="flex justify-between text-slate-400">
                     <span>Min. received ({slippage}% slippage)</span>
@@ -691,6 +799,11 @@ export default function SwapView() {
                   <span>Network</span>
                   <span className="text-yellow-400 font-medium">BNB Chain</span>
                 </div>
+                {priceImpact !== null && priceImpact >= 5 && priceImpact <= 15 && (
+                  <p className="text-red-400/90 mt-1 flex items-center gap-1.5">
+                    ⚠ High price impact — you lose {priceImpact.toFixed(1)}% of value on this trade
+                  </p>
+                )}
               </div>
             )}
 

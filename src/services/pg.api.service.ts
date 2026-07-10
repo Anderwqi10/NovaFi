@@ -1,4 +1,4 @@
-const BASE = "http://localhost:1357/api/pg";
+const BASE = `${process.env.REACT_APP_API_URL ?? "http://localhost:1357"}/api/pg`;
 
 function authHeaders() {
   const token = localStorage.getItem("pg_token");
@@ -70,8 +70,19 @@ export async function pgMe(): Promise<{ success: boolean; data?: PgUser }> {
 }
 
 // Blog
-export async function pgGetBlogPosts(limit = 10, offset = 0): Promise<{ success: boolean; data: BlogPost[]; total: number }> {
-  const res = await fetch(`${BASE}/blog?limit=${limit}&offset=${offset}`);
+export async function pgGetBlogPosts(
+  limit = 10,
+  offset = 0,
+  category = ""
+): Promise<{ success: boolean; data: BlogPost[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (category) params.set("category", category);
+  const res = await fetch(`${BASE}/blog?${params}`);
+  return res.json();
+}
+
+export async function pgGetBlogPost(id: number): Promise<{ success: boolean; data: BlogPost; msg?: string }> {
+  const res = await fetch(`${BASE}/blog/${id}`);
   return res.json();
 }
 
