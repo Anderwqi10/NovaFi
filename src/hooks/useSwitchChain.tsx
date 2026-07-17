@@ -1,19 +1,14 @@
-import { useWeb3React } from "@web3-react/core";
-import { Network } from "@web3-react/network";
-import { WalletConnect } from "@web3-react/walletconnect";
+import { useSwitchChain as useWagmiSwitchChain } from "wagmi";
 
-import { getAddChainParameters } from "../constants/networks";
-
+/**
+ * Cambia la wallet a la red indicada. Si la wallet no tiene la red
+ * agregada, wagmi envía wallet_addEthereumChain automáticamente
+ * (la red debe estar declarada en src/config/wagmi.ts).
+ */
 export function useSwitchChain() {
-  const { connector } = useWeb3React();
+  const { switchChainAsync } = useWagmiSwitchChain();
 
-  const switchChain = async (desiredChain: number) => {
-    if (connector instanceof WalletConnect || connector instanceof Network) {
-      await connector.activate(desiredChain === -1 ? undefined : desiredChain);
-    } else {
-      await connector.activate(desiredChain === -1 ? undefined : getAddChainParameters(desiredChain));
-    }
+  return async (desiredChain: number) => {
+    await switchChainAsync({ chainId: desiredChain });
   };
-
-  return switchChain;
 }

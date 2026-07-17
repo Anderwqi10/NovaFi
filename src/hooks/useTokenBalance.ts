@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useWeb3React } from "@web3-react/core";
 import { Contract } from "ethers";
 import { formatUnits } from "ethers/lib/utils";
+import { useWallet } from "./useWallet";
 import { Token } from "../constants/tokens";
 
 const ERC20_ABI = [
@@ -9,7 +9,7 @@ const ERC20_ABI = [
 ];
 
 export function useTokenBalance(token: Token | null): string | null {
-  const { account, provider } = useWeb3React();
+  const { account, provider } = useWallet();
   const [balance, setBalance] = useState<string | null>(null);
 
   useEffect(() => {

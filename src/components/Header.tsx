@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useWeb3React } from "@web3-react/core";
-import ConnectWallet from "./auth/ConnectWallet";
+import { useAccount } from "wagmi";
+import { useConnectModal, useAccountModal } from "@rainbow-me/rainbowkit";
 import logo from "../assets/logo/logoNovaFi.png";
 
 const NAV_LINKS = [
@@ -14,10 +14,10 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
-  const { account } = useWeb3React();
+  const { address: account } = useAccount();
+  const { openConnectModal } = useConnectModal();
+  const { openAccountModal } = useAccountModal();
   const location = useLocation();
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [, setSelectedWallet] = useState<"MetaMask" | "WalletConnect" | "Coinbase" | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const truncate = (addr: string) => addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "";
@@ -59,9 +59,8 @@ export function Header() {
               Buy &amp; Sell
             </Link>
             <button
-              onClick={() => setWalletOpen(true)}
-              disabled={!!account}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:opacity-90 transition-all disabled:opacity-70 shadow-sm shadow-cyan-500/20"
+              onClick={() => (account ? openAccountModal?.() : openConnectModal?.())}
+              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:opacity-90 transition-all shadow-sm shadow-cyan-500/20"
             >
               {account ? truncate(account) : "Connect Wallet"}
             </button>
@@ -112,12 +111,6 @@ export function Header() {
           </div>
         )}
       </header>
-
-      <ConnectWallet
-        isModalOpen={walletOpen}
-        setIsModalOpen={setWalletOpen}
-        setSelectedWallet={setSelectedWallet}
-      />
     </>
   );
 }

@@ -10,6 +10,7 @@ const OverviewView   = lazy(() => import("../views/OverviewView"));
 const CoinDetailsView = lazy(() => import("../views/CoinDetailsView"));
 const NFTView        = lazy(() => import("../views/NFTView"));
 const BlogView       = lazy(() => import("../views/BlogView"));
+const NotFound       = lazy(() => import("../views/NotFound"));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -40,6 +41,7 @@ export function Routers() {
           <Route path="/blog"      element={<BlogView />} />
 
           <Route path="/" element={<Navigate to="/swap" />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </Suspense>

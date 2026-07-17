@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useWeb3React } from "@web3-react/core";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Contract, providers } from "ethers";
 import { parseUnits, formatUnits } from "ethers/lib/utils";
 import { useTokenBalance } from "../hooks/useTokenBalance";
 import { useSwitchChain } from "../hooks/useSwitchChain";
+import { useWallet } from "../hooks/useWallet";
 import { fetchTokenPrices } from "../services/coingecko.service";
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
-import ConnectWallet from "../components/auth/ConnectWallet";
 import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 
 // ─── ABIs ────────────────────────────────────────────────────────────────────
@@ -281,8 +281,9 @@ function AddLiquidityTab({
   tokenPrices: Record<string, number>;
   slippage: number;
 }) {
-  const { account, provider, chainId } = useWeb3React();
+  const { account, provider, chainId } = useWallet();
   const switchChain = useSwitchChain();
+  const { openConnectModal } = useConnectModal();
 
   const [tokenA, setTokenA] = useState<Token>(initialPool?.tokenA ?? BNB);
   const [tokenB, setTokenB] = useState<Token | null>(initialPool?.tokenB ?? null);
@@ -291,8 +292,6 @@ function AddLiquidityTab({
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [, setSelectedWallet] = useState<any>(null);
 
   const balA = useTokenBalance(tokenA);
   const balB = useTokenBalance(tokenB);
@@ -398,7 +397,7 @@ function AddLiquidityTab({
   })();
 
   const getBtn = () => {
-    if (!account)         return { label: "Connect Wallet",       disabled: false, action: () => setWalletOpen(true) };
+    if (!account)         return { label: "Connect Wallet",       disabled: false, action: () => openConnectModal?.() };
     if (chainId !== BSC_CHAIN_ID) return { label: "Switch to BNB Chain", disabled: false, action: () => switchChain(BSC_CHAIN_ID) };
     if (!tokenB)          return { label: "Select second token",  disabled: true,  action: () => {} };
     if (!amountA || parseFloat(amountA) <= 0) return { label: "Enter an amount", disabled: true, action: () => {} };
@@ -506,8 +505,6 @@ function AddLiquidityTab({
       >
         {btn.label}
       </button>
-
-      <ConnectWallet isModalOpen={walletOpen} setIsModalOpen={setWalletOpen} setSelectedWallet={setSelectedWallet} />
     </div>
   );
 }
@@ -523,7 +520,7 @@ interface Position {
 function RemoveModal({ position, slippage, onClose }: {
   position: Position; slippage: number; onClose: () => void;
 }) {
-  const { account, provider } = useWeb3React();
+  const { account, provider } = useWallet();
   const [pct, setPct] = useState(100);
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
@@ -652,12 +649,11 @@ function RemoveModal({ position, slippage, onClose }: {
 }
 
 function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }) {
-  const { account, provider } = useWeb3React();
+  const { account, provider } = useWallet();
+  const { openConnectModal } = useConnectModal();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading]     = useState(false);
   const [removing, setRemoving]   = useState<Position | null>(null);
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [, setSelectedWallet] = useState<any>(null);
 
   const fetchPositions = useCallback(async () => {
     if (!account || !provider) return;
@@ -686,11 +682,10 @@ function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }
         <div className="text-4xl mb-3">💧</div>
         <p className="text-slate-300 font-semibold mb-1">No wallet connected</p>
         <p className="text-slate-500 text-sm mb-5">Connect your wallet to see your liquidity positions.</p>
-        <button onClick={() => setWalletOpen(true)}
+        <button onClick={() => openConnectModal?.()}
           className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 text-white font-semibold text-sm hover:opacity-90 transition-all">
           Connect Wallet
         </button>
-        <ConnectWallet isModalOpen={walletOpen} setIsModalOpen={setWalletOpen} setSelectedWallet={setSelectedWallet} />
       </div>
     );
   }

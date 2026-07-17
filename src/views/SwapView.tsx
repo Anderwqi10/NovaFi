@@ -3,16 +3,16 @@ import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
-import { useWeb3React } from "@web3-react/core";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Contract, providers } from "ethers";
 import { parseUnits, formatUnits } from "ethers/lib/utils";
 import { useLiveData } from "../hooks/useLiveData";
 import { useTokenBalance } from "../hooks/useTokenBalance";
 import { useSwitchChain } from "../hooks/useSwitchChain";
+import { useWallet } from "../hooks/useWallet";
 import { fetchCoinChart, fetchTokenPrices } from "../services/coingecko.service";
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
-import ConnectWallet from "../components/auth/ConnectWallet";
 import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 import { pgCreateTransaction } from "../services/pg.api.service";
 
@@ -275,8 +275,9 @@ function TxNotification({
 
 export default function SwapView() {
   const navigate = useNavigate();
-  const { account, provider, chainId } = useWeb3React();
+  const { account, provider, chainId } = useWallet();
   const switchChain = useSwitchChain();
+  const { openConnectModal } = useConnectModal();
 
   const [fromToken, setFromToken] = useState<Token>(TOKENS[0]); // BNB
   const [toToken, setToToken]     = useState<Token | null>(null);
@@ -300,9 +301,6 @@ export default function SwapView() {
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
-
-  const [walletOpen, setWalletOpen] = useState(false);
-  const [, setSelectedWallet] = useState<"MetaMask" | "WalletConnect" | "Coinbase" | null>(null);
 
   const fromBalance = useTokenBalance(fromToken);
   const toBalance   = useTokenBalance(toToken);
@@ -524,7 +522,7 @@ export default function SwapView() {
   // ── Button config ──────────────────────────────────────────────────────────
   const getBtn = (): { label: string; disabled: boolean; action: () => void } => {
     if (!account)
-      return { label: "Connect Wallet", disabled: false, action: () => setWalletOpen(true) };
+      return { label: "Connect Wallet", disabled: false, action: () => openConnectModal?.() };
     if (chainId !== BSC_CHAIN_ID)
       return { label: "Switch to BNB Chain", disabled: false, action: () => switchChain(BSC_CHAIN_ID) };
     if (!toToken)
@@ -838,13 +836,6 @@ export default function SwapView() {
           excludeId={fromToken.id}
         />
       )}
-
-      {/* Wallet connect modal */}
-      <ConnectWallet
-        isModalOpen={walletOpen}
-        setIsModalOpen={setWalletOpen}
-        setSelectedWallet={setSelectedWallet}
-      />
     </>
   );
 }
