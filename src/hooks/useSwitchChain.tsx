@@ -9,6 +9,13 @@ export function useSwitchChain() {
   const { switchChainAsync } = useWagmiSwitchChain();
 
   return async (desiredChain: number) => {
-    await switchChainAsync({ chainId: desiredChain });
+    try {
+      await switchChainAsync({ chainId: desiredChain });
+    } catch (err: any) {
+      // 4001 / UserRejectedRequestError: el usuario canceló en la wallet — no es un error
+      if (err?.code !== 4001 && err?.name !== "UserRejectedRequestError") {
+        console.error("switchChain failed:", err);
+      }
+    }
   };
 }

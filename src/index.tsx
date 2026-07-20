@@ -3,12 +3,21 @@ import ReactDOM from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
+import { bsc } from "wagmi/chains";
 import "@rainbow-me/rainbowkit/styles.css";
 
 import App from "./App";
 import { wagmiConfig } from "./config/wagmi";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const novaFiTheme = darkTheme({
   accentColor: "#06b6d4",
@@ -24,7 +33,7 @@ root.render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={novaFiTheme} modalSize="compact">
+        <RainbowKitProvider theme={novaFiTheme} modalSize="compact" initialChain={bsc}>
           <App />
         </RainbowKitProvider>
       </QueryClientProvider>

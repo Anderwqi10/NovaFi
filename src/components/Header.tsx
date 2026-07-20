@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAccount } from "wagmi";
-import { useConnectModal, useAccountModal } from "@rainbow-me/rainbowkit";
+import { useConnectModal, useAccountModal, useChainModal } from "@rainbow-me/rainbowkit";
+import { useWallet } from "../hooks/useWallet";
 import logo from "../assets/logo/logoNovaFi.png";
 
 const NAV_LINKS = [
@@ -14,9 +14,10 @@ const NAV_LINKS = [
 ];
 
 export function Header() {
-  const { address: account } = useAccount();
+  const { account, balance, isWrongNetwork, isConnecting } = useWallet();
   const { openConnectModal } = useConnectModal();
   const { openAccountModal } = useAccountModal();
+  const { openChainModal } = useChainModal();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -59,10 +60,37 @@ export function Header() {
               Buy &amp; Sell
             </Link>
             <button
-              onClick={() => (account ? openAccountModal?.() : openConnectModal?.())}
-              className="px-4 py-2 rounded-xl text-sm font-semibold bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:opacity-90 transition-all shadow-sm shadow-cyan-500/20"
+              onClick={() =>
+                isWrongNetwork
+                  ? openChainModal?.()
+                  : account
+                  ? openAccountModal?.()
+                  : openConnectModal?.()
+              }
+              disabled={isConnecting}
+              aria-label={account ? "Wallet account" : "Connect wallet"}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all shadow-sm disabled:opacity-60 disabled:cursor-wait ${
+                isWrongNetwork
+                  ? "bg-gradient-to-r from-rose-500 to-pink-600 shadow-rose-500/20"
+                  : "bg-gradient-to-r from-cyan-500 to-violet-600 shadow-cyan-500/20"
+              }`}
             >
-              {account ? truncate(account) : "Connect Wallet"}
+              {isConnecting ? (
+                "Connecting…"
+              ) : isWrongNetwork ? (
+                "Wrong network"
+              ) : account ? (
+                <>
+                  {balance && (
+                    <span className="hidden sm:inline text-white/80 font-medium mr-2">
+                      {parseFloat(balance).toFixed(3)} BNB
+                    </span>
+                  )}
+                  {truncate(account)}
+                </>
+              ) : (
+                "Connect Wallet"
+              )}
             </button>
 
             {/* Hamburger */}

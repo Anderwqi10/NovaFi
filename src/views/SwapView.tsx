@@ -13,6 +13,7 @@ import { useWallet } from "../hooks/useWallet";
 import { fetchCoinChart, fetchTokenPrices } from "../services/coingecko.service";
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
+import { assertChainBeforeSigning, describeTxError } from "../utils/txErrors";
 import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 import { pgCreateTransaction } from "../services/pg.api.service";
 
@@ -31,7 +32,8 @@ const ERC20_ABI = [
 
 const SLIPPAGE_PRESETS = [0.1, 0.5, 1.0];
 
-const bscProvider = new providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+// timeout corto: si el RPC no responde, el quote cae al estimado CoinGecko en vez de colgar la UI
+const bscProvider = new providers.JsonRpcProvider({ url: "https://bsc-dataseed.binance.org/", timeout: 10_000 });
 
 const buildPath = (from: Token, to: Token): string[] => {
   if (!from.address) return [WBNB, to.address!];
@@ -275,7 +277,7 @@ function TxNotification({
 
 export default function SwapView() {
   const navigate = useNavigate();
-  const { account, provider, chainId } = useWallet();
+  const { account, provider, isWrongNetwork } = useWallet();
   const switchChain = useSwitchChain();
   const { openConnectModal } = useConnectModal();
 
@@ -293,7 +295,6 @@ export default function SwapView() {
   const [activeFilter, setActiveFilter] = useState(TIME_OPTIONS[1]);
 
   const [tokenPrices, setTokenPrices] = useState<Record<string, number>>({});
-  const [pricesLoading, setPricesLoading] = useState(false);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [priceImpact, setPriceImpact] = useState<number | null>(null);
   const [quoteSource, setQuoteSource] = useState<"amm" | "estimate" | null>(null);
@@ -301,6 +302,13 @@ export default function SwapView() {
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Al cambiar de cuenta, descarta cualquier estado de transacción a medias
+  useEffect(() => {
+    setTxState("idle");
+    setTxHash(null);
+    setTxError(null);
+  }, [account]);
 
   const fromBalance = useTokenBalance(fromToken);
   const toBalance   = useTokenBalance(toToken);
@@ -323,11 +331,9 @@ export default function SwapView() {
   // ── Fetch token prices from CoinGecko ─────────────────────────────────────
   useEffect(() => {
     const ids = TOKENS.map((t) => t.coingeckoId);
-    setPricesLoading(true);
     fetchTokenPrices(ids)
       .then(setTokenPrices)
-      .catch(() => {})
-      .finally(() => setPricesLoading(false));
+      .catch(() => {});
 
     const interval = setInterval(() => {
       fetchTokenPrices(ids).then(setTokenPrices).catch(() => {});
@@ -424,6 +430,8 @@ export default function SwapView() {
 
     try {
       setTxError(null);
+      // Guard duro: verifica la red real de la wallet justo antes de firmar
+      await assertChainBeforeSigning(provider, BSC_CHAIN_ID);
       const signer = (provider as any).getSigner();
       const fromAmountWei = parseUnits(sanitizeAmount(fromAmount, fromToken.decimals), fromToken.decimals);
       const path = buildPath(fromToken, toToken);
@@ -507,15 +515,7 @@ export default function SwapView() {
       setFromAmount("");
     } catch (err: any) {
       setTxState("error");
-      if (err.code === 4001 || err.code === "ACTION_REJECTED") {
-        setTxError("Transaction cancelled");
-      } else if (err?.message?.includes("insufficient funds")) {
-        setTxError("Insufficient funds for gas");
-      } else if (err?.message?.includes("INSUFFICIENT_OUTPUT_AMOUNT")) {
-        setTxError("Price moved too much — try increasing slippage");
-      } else {
-        setTxError(err?.shortMessage || err?.reason || err?.message || "Transaction failed");
-      }
+      setTxError(describeTxError(err));
     }
   };
 
@@ -523,7 +523,7 @@ export default function SwapView() {
   const getBtn = (): { label: string; disabled: boolean; action: () => void } => {
     if (!account)
       return { label: "Connect Wallet", disabled: false, action: () => openConnectModal?.() };
-    if (chainId !== BSC_CHAIN_ID)
+    if (isWrongNetwork)
       return { label: "Switch to BNB Chain", disabled: false, action: () => switchChain(BSC_CHAIN_ID) };
     if (!toToken)
       return { label: "Select a token", disabled: true, action: () => {} };

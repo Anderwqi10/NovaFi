@@ -8,6 +8,7 @@ import { useWallet } from "../hooks/useWallet";
 import { fetchTokenPrices } from "../services/coingecko.service";
 import { TOKENS, Token } from "../constants/tokens";
 import { PANCAKE_ROUTER_V2, WBNB, BSC_CHAIN_ID } from "../constants/contracts";
+import { assertChainBeforeSigning, describeTxError } from "../utils/txErrors";
 import { CRYPTO_LOGOS } from "../assets/crypto-icons";
 
 // ─── ABIs ────────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ const PAIR_ABI = [
 const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 // Read-only provider so pool data loads without a connected wallet
-const bscReadProvider = new providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+const bscReadProvider = new providers.JsonRpcProvider({ url: "https://bsc-dataseed.binance.org/", timeout: 10_000 });
 
 // ─── Pool definitions ─────────────────────────────────────────────────────────
 
@@ -281,7 +282,7 @@ function AddLiquidityTab({
   tokenPrices: Record<string, number>;
   slippage: number;
 }) {
-  const { account, provider, chainId } = useWallet();
+  const { account, provider, isWrongNetwork } = useWallet();
   const switchChain = useSwitchChain();
   const { openConnectModal } = useConnectModal();
 
@@ -292,6 +293,13 @@ function AddLiquidityTab({
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Al cambiar de cuenta, descarta cualquier estado de transacción a medias
+  useEffect(() => {
+    setTxState("idle");
+    setTxHash(null);
+    setTxError(null);
+  }, [account]);
 
   const balA = useTokenBalance(tokenA);
   const balB = useTokenBalance(tokenB);
@@ -328,6 +336,8 @@ function AddLiquidityTab({
 
     try {
       setTxError(null);
+      // Guard duro: verifica la red real de la wallet justo antes de firmar
+      await assertChainBeforeSigning(provider, BSC_CHAIN_ID);
 
       const amtA = parseUnits(sanitize(amountA, tokenA.decimals), tokenA.decimals);
       const amtB = parseUnits(sanitize(amountB, tokenB.decimals), tokenB.decimals);
@@ -381,9 +391,7 @@ function AddLiquidityTab({
       setAmountB("");
     } catch (err: any) {
       setTxState("error");
-      if (err.code === 4001 || err.code === "ACTION_REJECTED") setTxError("Transaction cancelled");
-      else if (err?.message?.includes("insufficient funds")) setTxError("Insufficient funds for gas");
-      else setTxError(err?.shortMessage || err?.reason || err?.message || "Transaction failed");
+      setTxError(describeTxError(err));
     }
   };
 
@@ -398,7 +406,7 @@ function AddLiquidityTab({
 
   const getBtn = () => {
     if (!account)         return { label: "Connect Wallet",       disabled: false, action: () => openConnectModal?.() };
-    if (chainId !== BSC_CHAIN_ID) return { label: "Switch to BNB Chain", disabled: false, action: () => switchChain(BSC_CHAIN_ID) };
+    if (isWrongNetwork)  return { label: "Switch to BNB Chain", disabled: false, action: () => switchChain(BSC_CHAIN_ID) };
     if (!tokenB)          return { label: "Select second token",  disabled: true,  action: () => {} };
     if (!amountA || parseFloat(amountA) <= 0) return { label: "Enter an amount", disabled: true, action: () => {} };
     if (balA !== null && parseFloat(amountA) > parseFloat(balA)) return { label: `Insufficient ${tokenA.symbol}`, disabled: true, action: () => {} };
@@ -520,11 +528,19 @@ interface Position {
 function RemoveModal({ position, slippage, onClose }: {
   position: Position; slippage: number; onClose: () => void;
 }) {
-  const { account, provider } = useWallet();
+  const { account, provider, isWrongNetwork } = useWallet();
+  const switchChain = useSwitchChain();
   const [pct, setPct] = useState(100);
   const [txState, setTxState] = useState<TxState>("idle");
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Si la cuenta cambia con el modal abierto, descarta el estado de la tx
+  useEffect(() => {
+    setTxState("idle");
+    setTxHash(null);
+    setTxError(null);
+  }, [account]);
 
   const handleRemove = async () => {
     if (!account || !provider) return;
@@ -533,6 +549,8 @@ function RemoveModal({ position, slippage, onClose }: {
 
     try {
       setTxError(null);
+      // Guard duro: verifica la red real de la wallet justo antes de firmar
+      await assertChainBeforeSigning(provider, BSC_CHAIN_ID);
       const lpPair = new Contract(position.pool.pairAddress, PAIR_ABI, signer);
       const lpAmount = position.lpBalanceRaw.mul(pct).div(100);
       const { tokenA, tokenB } = position.pool;
@@ -574,8 +592,7 @@ function RemoveModal({ position, slippage, onClose }: {
       setTxState("success");
     } catch (err: any) {
       setTxState("error");
-      if (err.code === 4001 || err.code === "ACTION_REJECTED") setTxError("Transaction cancelled");
-      else setTxError(err?.shortMessage || err?.reason || err?.message || "Transaction failed");
+      setTxError(describeTxError(err));
     }
   };
 
@@ -633,7 +650,12 @@ function RemoveModal({ position, slippage, onClose }: {
           </div>
         </div>
 
-        <button onClick={txState === "idle" || txState === "error" ? handleRemove : undefined}
+        <button
+          onClick={
+            isWrongNetwork
+              ? () => switchChain(BSC_CHAIN_ID)
+              : txState === "idle" || txState === "error" ? handleRemove : undefined
+          }
           disabled={txState === "approving" || txState === "pending" || txState === "success"}
           className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all ${
             txState === "approving" || txState === "pending" || txState === "success"
@@ -641,7 +663,9 @@ function RemoveModal({ position, slippage, onClose }: {
               : "bg-gradient-to-r from-cyan-500 to-violet-600 text-white hover:opacity-90 shadow-lg shadow-cyan-500/15"
           }`}
         >
-          {txState === "approving" ? "Approving…" : txState === "pending" ? "Removing…" : "Remove Liquidity"}
+          {isWrongNetwork
+            ? "Switch to BNB Chain"
+            : txState === "approving" ? "Approving…" : txState === "pending" ? "Removing…" : "Remove Liquidity"}
         </button>
       </div>
     </div>
@@ -649,20 +673,23 @@ function RemoveModal({ position, slippage, onClose }: {
 }
 
 function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }) {
-  const { account, provider } = useWallet();
+  const { account, isWrongNetwork } = useWallet();
   const { openConnectModal } = useConnectModal();
+  const switchChain = useSwitchChain();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading]     = useState(false);
   const [removing, setRemoving]   = useState<Position | null>(null);
 
+  // Lectura vía RPC de BSC, no vía la wallet: las posiciones se ven
+  // correctamente aunque la wallet esté en otra red.
   const fetchPositions = useCallback(async () => {
-    if (!account || !provider) return;
+    if (!account) return;
     setLoading(true);
     const found: Position[] = [];
     await Promise.all(
       POOLS.map(async (pool) => {
         try {
-          const pair = new Contract(pool.pairAddress, PAIR_ABI, provider);
+          const pair = new Contract(pool.pairAddress, PAIR_ABI, bscReadProvider);
           const raw  = await pair.balanceOf(account);
           if (raw.gt(0)) {
             found.push({ pool, lpBalance: formatUnits(raw, 18), lpBalanceRaw: raw });
@@ -672,7 +699,7 @@ function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }
     );
     setPositions(found);
     setLoading(false);
-  }, [account, provider]);
+  }, [account]);
 
   useEffect(() => { fetchPositions(); }, [fetchPositions]);
 
@@ -723,6 +750,17 @@ function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }
 
   return (
     <>
+      {isWrongNetwork && (
+        <div className="mb-4 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-yellow-400 text-sm">
+            ⚠ Your wallet is on another network — switch to BNB Chain to manage positions.
+          </span>
+          <button onClick={() => switchChain(BSC_CHAIN_ID)}
+            className="px-4 py-1.5 rounded-lg text-xs font-semibold bg-yellow-500/20 text-yellow-300 border border-yellow-500/30 hover:bg-yellow-500/30 transition-all">
+            Switch network
+          </button>
+        </div>
+      )}
       <div className="rounded-2xl border border-indigo-900/40 bg-[#0c0c24] p-6">
         <h2 className="text-slate-100 font-bold text-lg mb-4">My Positions</h2>
         <div className="flex flex-col gap-3">
