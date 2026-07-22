@@ -16,7 +16,7 @@ Decentralized DeFi trading platform on BNB Chain. Real on-chain token swaps and 
 | Backend | Node.js + Express |
 | Database | SQLite (local file, no installation required) |
 | Crypto data | CoinGecko API (real-time, no API key needed) |
-| Wallets | Web3-React v8 (MetaMask, WalletConnect, Coinbase) |
+| Wallets | wagmi v2 + RainbowKit v2 — EIP-6963 multi-wallet detection, WalletConnect (QR/mobile), OKX, Binance, Coinbase, Trust |
 | Auth | JWT + bcryptjs |
 | Charts | Recharts |
 
@@ -51,6 +51,8 @@ cp .env.example .env        # optional — only needed to point the frontend at 
 ```
 
 That's it. The database is created automatically the first time you run the project.
+
+> To enable the WalletConnect QR flow (connecting mobile wallets), set `REACT_APP_WC_PROJECT_ID` in `.env` with a project ID from [cloud.reown.com](https://cloud.reown.com). Without it, injected/browser wallets (MetaMask, OKX, Binance, etc. via EIP-6963) still work normally.
 
 ---
 
@@ -140,8 +142,10 @@ novaFi/
 ├── .env.example      # Frontend env template (REACT_APP_API_URL)
 ├── src/
 │   ├── views/        # Swap, Liquidity, Overview, Coins, NFT, Blog
-│   ├── components/   # Header, Footer, Router, ConnectWallet, AuthModal
-│   ├── hooks/        # useLiveData, useTokenBalance, useSwitchChain
+│   ├── components/   # Header, Footer, Router, AuthModal
+│   ├── config/       # wagmi.ts (chains/wallets), rainbowkitTheme.ts (connect modal theme)
+│   ├── hooks/        # useWallet, useLiveData, useTokenBalance, useSwitchChain
+│   ├── utils/        # txErrors.ts (chain guard + error taxonomy)
 │   └── services/     # coingecko.service.ts, pg.api.service.ts
 ├── backend/
 │   ├── app.js           # Server entry point (mounts /api/pg, SQLite)

@@ -1,13 +1,13 @@
 /**
- * Seguridad y manejo de errores para flujos de firma (swap / liquidez).
- * Sin dependencias: testeable de forma aislada.
+ * Security and error handling for signing flows (swap / liquidity).
+ * No dependencies: testable in isolation.
  */
 
 /**
- * Guard duro pre-firma: consulta la red REAL de la wallet justo antes de
- * firmar, en vez de confiar en el estado de la UI (que puede quedar
- * desincronizado milisegundos si el usuario cambia de red a mitad de flujo).
- * Lanza un error con code WRONG_NETWORK que describeTxError sabe traducir.
+ * Hard pre-signing guard: queries the wallet's REAL network right before
+ * signing, instead of trusting UI state (which can be out of sync for a
+ * few milliseconds if the user switches networks mid-flow).
+ * Throws an error with code WRONG_NETWORK that describeTxError knows how to translate.
  */
 export async function assertChainBeforeSigning(
   provider: { getNetwork: () => Promise<{ chainId: number }> },
@@ -22,9 +22,9 @@ export async function assertChainBeforeSigning(
 }
 
 /**
- * Traduce cualquier error de wallet/RPC/contrato a un mensaje claro para el
- * usuario. Cubre los códigos EIP-1193 (4001, -32002), los de ethers v5
- * (ACTION_REJECTED, INSUFFICIENT_FUNDS, …) y los reverts de PancakeSwap.
+ * Translates any wallet/RPC/contract error into a clear message for the
+ * user. Covers EIP-1193 codes (4001, -32002), ethers v5 codes
+ * (ACTION_REJECTED, INSUFFICIENT_FUNDS, …) and PancakeSwap reverts.
  */
 export function describeTxError(err: any): string {
   const code = err?.code;
@@ -32,35 +32,35 @@ export function describeTxError(err: any): string {
   const msg: string =
     err?.error?.message || err?.reason || err?.shortMessage || err?.message || "";
 
-  // Red incorrecta detectada por el guard pre-firma
+  // Wrong network detected by the pre-signing guard
   if (code === "WRONG_NETWORK")
     return "Wallet is on the wrong network — switch to BNB Chain and try again";
 
-  // Usuario canceló en la wallet (EIP-1193 4001 / ethers v5)
+  // User cancelled in the wallet (EIP-1193 4001 / ethers v5)
   if (code === 4001 || innerCode === 4001 || code === "ACTION_REJECTED")
     return "Transaction cancelled";
 
-  // Ya hay una solicitud esperando en la wallet (EIP-1193 -32002)
+  // A request is already pending in the wallet (EIP-1193 -32002)
   if (code === -32002 || innerCode === -32002 || /already pending/i.test(msg))
     return "A request is already pending in your wallet — open it to continue";
 
-  // Sin fondos para el monto + gas
+  // Not enough funds for amount + gas
   if (code === "INSUFFICIENT_FUNDS" || /insufficient funds/i.test(msg))
     return "Insufficient funds for amount + gas";
 
-  // Reverts de PancakeSwap por movimiento de precio / slippage
+  // PancakeSwap reverts from price movement / slippage
   if (/INSUFFICIENT_OUTPUT_AMOUNT|INSUFFICIENT_A_AMOUNT|INSUFFICIENT_B_AMOUNT|EXCESSIVE_INPUT_AMOUNT/.test(msg))
     return "Price moved too much — try increasing slippage";
 
-  // Deadline de la transacción vencido
+  // Transaction deadline expired
   if (/EXPIRED/.test(msg))
     return "Transaction deadline expired — try again";
 
-  // La simulación indica que la tx revertiría
+  // Simulation indicates the tx would revert
   if (code === "UNPREDICTABLE_GAS_LIMIT" || code === "CALL_EXCEPTION")
     return "Transaction would fail — check amounts and allowances, then try again";
 
-  // RPC caído o sin respuesta
+  // RPC down or unresponsive
   if (code === "NETWORK_ERROR" || code === "TIMEOUT" || /timeout|network error/i.test(msg))
     return "Network error — the RPC did not respond, please try again";
 

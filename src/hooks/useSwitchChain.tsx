@@ -1,9 +1,9 @@
 import { useSwitchChain as useWagmiSwitchChain } from "wagmi";
 
 /**
- * Cambia la wallet a la red indicada. Si la wallet no tiene la red
- * agregada, wagmi envía wallet_addEthereumChain automáticamente
- * (la red debe estar declarada en src/config/wagmi.ts).
+ * Switches the wallet to the given chain. If the wallet doesn't have the
+ * chain added yet, wagmi automatically sends wallet_addEthereumChain
+ * (the chain must be declared in src/config/wagmi.ts).
  */
 export function useSwitchChain() {
   const { switchChainAsync } = useWagmiSwitchChain();
@@ -12,7 +12,7 @@ export function useSwitchChain() {
     try {
       await switchChainAsync({ chainId: desiredChain });
     } catch (err: any) {
-      // 4001 / UserRejectedRequestError: el usuario canceló en la wallet — no es un error
+      // 4001 / UserRejectedRequestError: user cancelled in the wallet — not a real error
       if (err?.code !== 4001 && err?.name !== "UserRejectedRequestError") {
         console.error("switchChain failed:", err);
       }

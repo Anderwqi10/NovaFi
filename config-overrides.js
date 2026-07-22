@@ -17,11 +17,11 @@ module.exports = function override(config) {
   config.resolve.alias = {
     ...config.resolve.alias,
     'process/browser': require.resolve('process/browser.js'),
-    // @metamask/sdk (dep de RainbowKit) importa almacenamiento de React Native
-    // que no existe en web; sin esto el build emite un warning de módulo no encontrado
+    // @metamask/sdk (a RainbowKit dependency) imports React Native storage
+    // that doesn't exist on web; without this the build emits a module-not-found warning
     '@react-native-async-storage/async-storage': false,
-    // Fuerza el build ESM de openapi-fetch: el CJS rompe el interop de esbuild
-    // dentro de @metamask/sdk-analytics ("import_openapi_fetch.default is not a function")
+    // Forces the ESM build of openapi-fetch: the CJS one breaks esbuild's interop
+    // inside @metamask/sdk-analytics ("import_openapi_fetch.default is not a function")
     'openapi-fetch$': require.resolve('openapi-fetch/dist/index.js'),
   };
 

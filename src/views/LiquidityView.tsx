@@ -294,7 +294,7 @@ function AddLiquidityTab({
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  // Al cambiar de cuenta, descarta cualquier estado de transacción a medias
+  // On account change, discard any mid-flight transaction state
   useEffect(() => {
     setTxState("idle");
     setTxHash(null);
@@ -535,7 +535,7 @@ function RemoveModal({ position, slippage, onClose }: {
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  // Si la cuenta cambia con el modal abierto, descarta el estado de la tx
+  // If the account changes while the modal is open, discard the tx state
   useEffect(() => {
     setTxState("idle");
     setTxHash(null);
@@ -680,8 +680,8 @@ function MyPositionsTab({ tokenPrices }: { tokenPrices: Record<string, number> }
   const [loading, setLoading]     = useState(false);
   const [removing, setRemoving]   = useState<Position | null>(null);
 
-  // Lectura vía RPC de BSC, no vía la wallet: las posiciones se ven
-  // correctamente aunque la wallet esté en otra red.
+  // Read via the BSC RPC, not via the wallet: positions display correctly
+  // even when the wallet is on another network.
   const fetchPositions = useCallback(async () => {
     if (!account) return;
     setLoading(true);

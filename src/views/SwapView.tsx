@@ -303,7 +303,7 @@ export default function SwapView() {
   const [txHash, setTxHash]   = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  // Al cambiar de cuenta, descarta cualquier estado de transacción a medias
+  // On account change, discard any mid-flight transaction state
   useEffect(() => {
     setTxState("idle");
     setTxHash(null);

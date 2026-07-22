@@ -1,5 +1,5 @@
 const BASE = "https://api.coingecko.com/api/v3";
-const TTL = 30_000; // cache válido 30 segundos
+const TTL = 30_000; // cache valid for 30 seconds
 
 interface CacheEntry { data: unknown; ts: number }
 const cache = new Map<string, CacheEntry>();

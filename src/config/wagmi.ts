@@ -4,16 +4,18 @@ import {
   walletConnectWallet,
   coinbaseWallet,
   trustWallet,
+  okxWallet,
+  binanceWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { fallback, http } from "wagmi";
 import { bsc } from "wagmi/chains";
 
-// WalletConnect (QR / móvil) necesita un projectId real de https://cloud.reown.com
-// Sin él, las wallets inyectadas (EIP-6963) siguen funcionando igualmente.
+// WalletConnect (QR / mobile) needs a real projectId from https://cloud.reown.com
+// Without it, injected wallets (EIP-6963) still work fine.
 const WC_PROJECT_ID = process.env.REACT_APP_WC_PROJECT_ID || "novafi-dev-placeholder";
 
-// RPCs públicos de BSC en orden de preferencia: si uno falla o excede el
-// timeout, viem pasa automáticamente al siguiente.
+// Public BSC RPCs in order of preference: if one fails or times out,
+// viem automatically falls back to the next one.
 const BSC_RPCS = [
   "https://bsc-dataseed.binance.org/",
   "https://bsc-dataseed1.defibit.io/",
@@ -27,14 +29,23 @@ export const wagmiConfig = getDefaultConfig({
   transports: {
     [bsc.id]: fallback(BSC_RPCS.map((url) => http(url, { timeout: 10_000 }))),
   },
-  // Lista explícita SIN metaMaskWallet: ese conector arrastra @metamask/sdk,
-  // cuyo módulo de analytics rompe en webpack/CRA ("import_openapi_fetch.default
-  // is not a function"). MetaMask extensión se detecta igual vía EIP-6963
-  // (injectedWallet) y MetaMask móvil entra por el QR de WalletConnect.
+  // Explicit list WITHOUT metaMaskWallet: that connector pulls in @metamask/sdk,
+  // whose analytics module breaks under webpack/CRA ("import_openapi_fetch.default
+  // is not a function"). MetaMask extension is still detected via EIP-6963
+  // (injectedWallet) and MetaMask mobile still connects through the WalletConnect QR.
+  //
+  // Grouped into two sections so the modal reads with clear priority:
+  // "Recommended" covers the common case (extension already installed + universal
+  // mobile QR), "More wallets" are dedicated connectors for specific wallets the
+  // user may not have auto-detected.
   wallets: [
     {
-      groupName: "Wallets",
-      wallets: [injectedWallet, walletConnectWallet, coinbaseWallet, trustWallet],
+      groupName: "Recommended",
+      wallets: [injectedWallet, walletConnectWallet],
+    },
+    {
+      groupName: "More wallets",
+      wallets: [okxWallet, binanceWallet, coinbaseWallet, trustWallet],
     },
   ],
 });
