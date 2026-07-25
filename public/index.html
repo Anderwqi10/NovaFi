@@ -2,6 +2,38 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      // Runs before any bundled script (including CRA's dev error overlay), so
+      // it registers first and can stop propagation for window/unhandledrejection
+      // errors thrown by browser extensions (wallet extensions injecting into
+      // the page, e.g. window.tron/window.ethereum conflicts) before the
+      // overlay's own listener sees them. Real app errors are untouched.
+      (function () {
+        var EXTENSION_ORIGIN = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//;
+        window.addEventListener(
+          "error",
+          function (event) {
+            var stack = event.error && event.error.stack;
+            if (EXTENSION_ORIGIN.test(event.filename || "") || EXTENSION_ORIGIN.test(stack || "")) {
+              event.stopImmediatePropagation();
+              event.preventDefault();
+            }
+          },
+          true
+        );
+        window.addEventListener(
+          "unhandledrejection",
+          function (event) {
+            var stack = event.reason && event.reason.stack;
+            if (EXTENSION_ORIGIN.test(stack || "")) {
+              event.stopImmediatePropagation();
+              event.preventDefault();
+            }
+          },
+          true
+        );
+      })();
+    </script>
     <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/logoFN.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#03030f" />
