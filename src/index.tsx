@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
-import { bsc } from "wagmi/chains";
 import "@rainbow-me/rainbowkit/styles.css";
 
 import App from "./App";
@@ -27,7 +26,7 @@ root.render(
   <React.StrictMode>
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider theme={novaFiRainbowKitTheme} modalSize="compact" initialChain={bsc}>
+        <RainbowKitProvider theme={novaFiRainbowKitTheme} modalSize="compact">
           <App />
         </RainbowKitProvider>
       </QueryClientProvider>

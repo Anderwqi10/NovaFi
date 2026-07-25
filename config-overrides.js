@@ -33,5 +33,19 @@ module.exports = function override(config) {
     }),
   ];
 
+  // ox (a viem dependency) does `await import('node:worker_threads')` with a
+  // variable specifier, guarded by an isNode check that's always false in the
+  // browser bundle — dead code there, but webpack can't prove that statically
+  // and emits "Critical dependency: the request of a dependency is an
+  // expression". Harmless, but CI=true (GitHub Actions, Vercel, Netlify...)
+  // treats every build warning as a hard error and fails the build over this.
+  config.ignoreWarnings = [
+    ...(config.ignoreWarnings || []),
+    {
+      module: /ox[\\/].*virtualMasterPool/,
+      message: /Critical dependency: the request of a dependency is an expression/,
+    },
+  ];
+
   return config;
 };
