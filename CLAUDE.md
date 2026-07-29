@@ -69,6 +69,7 @@ novaFi/
 │   ├── components/
 │   │   ├── auth/AuthModal.tsx ← Login/register modal for the JWT+SQLite account system
 │   │   ├── Header.tsx        ← Nav + wallet connect/account button (RainbowKit modals)
+│   │   ├── NetworkGuard.tsx  ← Auto-switches to BSC right after connect if on the wrong chain
 │   │   ├── Footer.tsx
 │   │   ├── Router.tsx        ← All client route definitions
 │   ├── config/
@@ -119,9 +120,13 @@ All code, comments, JSDoc, and documentation (`CLAUDE.md`, `README.md`) must be 
 
 - `src/config/wagmi.ts` builds the wagmi config via RainbowKit's `getDefaultConfig`.
 - Chains: `[bsc, mainnet]`. `mainnet` is included only as a "landing chain" so the initial connect handshake can match whatever chain the wallet is already on, without forcing an implicit switch (see "Known issues — fixed" below). The app is still functionally BSC-only.
-- Wallet list: **Recommended** → WalletConnect (QR/mobile). **More wallets** → OKX, Binance, Coinbase, Trust. No `metaMaskWallet` connector (breaks the CRA build via `@metamask/sdk`'s analytics module) and no generic `injectedWallet` ("Browser Wallet") entry — real extensions (MetaMask, OKX, Rabby, etc.) are still auto-detected via EIP-6963, independently of this list, and merged into the modal by RainbowKit.
+- Wallet list: **Recommended** → WalletConnect (QR/mobile). **More wallets** → OKX, Binance, Coinbase, Trust, `injectedWallet` ("Browser Wallet"). No `metaMaskWallet` connector (breaks the CRA build via `@metamask/sdk`'s analytics module) — MetaMask itself still works fine, detected via EIP-6963 (see below).
+- Real extensions that announce via EIP-6963 (MetaMask, OKX, Rabby, etc.) are auto-detected independently of the `wallets` list above and merged into the modal by RainbowKit. `injectedWallet` is kept as an explicit fallback for extensions that only expose `window.ethereum` without an EIP-6963 announcement — otherwise those wouldn't appear anywhere in the modal. Trade-off: this tile always renders regardless of whether any extension is installed, and clicking it with nothing injected fails with no fallback (no QR, no install link).
 - `src/hooks/useWallet.ts` bridges wagmi state into the same `{ account, provider, chainId }` shape the old ethers v5 contract code expects.
-- Network mismatch is handled as a separate, explicit step after connecting: `isWrongNetwork` (from `useWallet`) drives a "Wrong network" button in `Header.tsx` that opens RainbowKit's chain-switch modal. Connect and chain-switch are intentionally **not** combined into one handshake — see the wagmi bug note below.
+- Network mismatch is handled as a separate step after connecting (never combined into the connect handshake itself — see the wagmi bug note below):
+  - `src/components/NetworkGuard.tsx`, mounted once in `App.tsx`, watches `useAccount()` and automatically calls `switchChain(BSC_CHAIN_ID)` the moment a wallet connects on the wrong chain — no need to find/click a button first. Guarded by a ref so it only attempts once per wrong `chainId` (doesn't spam the wallet if the user rejects).
+  - `isWrongNetwork` (from `useWallet`) still drives a "Wrong network" button in `Header.tsx`/`SwapView.tsx`/`LiquidityView.tsx` as the manual fallback/retry if the automatic prompt was dismissed or missed.
+  - The wallet's own switch-network confirmation popup (`wallet_switchEthereumChain`) can never be skipped — that's a security control enforced by the wallet software itself, not something a dapp can bypass.
 
 ---
 
@@ -130,6 +135,7 @@ All code, comments, JSDoc, and documentation (`CLAUDE.md`, `README.md`) must be 
 - **`invalid border=0` crash on any WalletConnect/QR wallet.** Root cause: `cuer@0.0.3` (RainbowKit dependency) hardcodes `border: 0` when calling `encodeQR`; the resolved `qr@0.6.0` added a validation that rejects `border <= 0`. Fixed by pinning `"qr": "0.5.5"` via `overrides` in `package.json` (last version without that validation).
 - **Browser wallet connect hangs forever ("Connecting…" with no error).** Root cause: `RainbowKitProvider`'s `initialChain={bsc}` forced every `connectAsync` call to request `chainId: 56` regardless of the wallet's current chain. When the wallet wasn't already on BSC, this hit an open, unfixed wagmi v2 bug ([wevm/wagmi#4118](https://github.com/wevm/wagmi/issues/4118)) where the implicit chain-switch-during-connect never resolves. Fixed by removing `initialChain` and adding `mainnet` to `chains` in `wagmi.ts`, so the initial connect matches the wallet's real chain and the BSC switch happens as a separate, explicit step via the existing "Wrong network" flow.
 - **Production build fails when `CI=true`** (GitHub Actions, Vercel, Netlify default). Root cause: `ox` (a `viem` dependency) does `await import('node:worker_threads')` with a variable specifier inside an `isNode`-guarded branch that's dead code in the browser bundle; webpack can't prove that statically and emits "Critical dependency: the request of a dependency is an expression", which CRA treats as a hard error under `CI=true`. Fixed with a scoped `config.ignoreWarnings` entry in `config-overrides.js` (matches only that module + message, doesn't suppress other warnings).
+- **`ChunkLoadError` on lazy-loaded chunks** (e.g. the "Need the official WalletConnect modal?" link in the QR screen, which lazy-loads `@reown/appkit-ui` on click). Root cause: any code-split chunk 404s once the chunk hashes the already-loaded `bundle.js` references no longer match what the server has — after a new deploy, or a local dev-server restart while a tab was already open. Mitigated with a global `unhandledrejection` handler in `public/index.html` that detects `ChunkLoadError` (by `error.name` or the "Loading chunk ... failed" message) and reloads the page once, throttled to at most once per 10s so a genuinely persistent failure doesn't reload-loop. Doesn't fix the underlying cause (inherent to code-splitting) — just means the user never has to see it.
 
 ## Known issues — open (see chat for full audit report)
 

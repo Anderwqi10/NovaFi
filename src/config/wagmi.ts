@@ -5,6 +5,7 @@ import {
   trustWallet,
   okxWallet,
   binanceWallet,
+  injectedWallet,
 } from "@rainbow-me/rainbowkit/wallets";
 import { fallback, http } from "wagmi";
 import { bsc, mainnet } from "wagmi/chains";
@@ -41,9 +42,16 @@ export const wagmiConfig = getDefaultConfig({
   // is not a function"). MetaMask and any other extension are still detected
   // automatically via EIP-6963 (wagmi's native multi-provider discovery, independent
   // of this `wallets` list) and merged into the modal by RainbowKit; MetaMask mobile
-  // still connects through the WalletConnect QR. No generic "Browser Wallet" entry
-  // (injectedWallet) on purpose — it's redundant with EIP-6963 auto-detection and
-  // confusing when no specific extension is installed.
+  // still connects through the WalletConnect QR.
+  // `injectedWallet` ("Browser Wallet") is back as a deliberate fallback: it's the
+  // only entry that can reach a wallet exposing plain `window.ethereum` without an
+  // EIP-6963 announcement (older or less-maintained extensions), which otherwise
+  // wouldn't appear anywhere in the modal. Trade-off (verified in RainbowKit's
+  // source): this tile always renders regardless of whether any extension is
+  // installed, and connecting fails with no fallback (no QR, no install link) if
+  // the user clicks it with nothing injected — this is exactly why it was removed
+  // earlier. Kept anyway per product decision: covering the EIP-6963 gap outweighs
+  // the occasional no-op click for users without any injected wallet.
   wallets: [
     {
       groupName: "Recommended",
@@ -51,7 +59,7 @@ export const wagmiConfig = getDefaultConfig({
     },
     {
       groupName: "More wallets",
-      wallets: [okxWallet, binanceWallet, coinbaseWallet, trustWallet],
+      wallets: [okxWallet, binanceWallet, coinbaseWallet, trustWallet, injectedWallet],
     },
   ],
 });

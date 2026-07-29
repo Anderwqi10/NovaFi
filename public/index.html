@@ -33,6 +33,36 @@
           true
         );
       })();
+
+      // Lazy-loaded chunks (e.g. RainbowKit/WalletConnect's "official modal"
+      // bundle) 404 whenever the tab's bundle.js references a chunk hash that
+      // no longer exists on the server — after a new deploy, or a dev-server
+      // restart. Rather than leaving the user stuck on a dead error, reload
+      // once to pick up the current build. Throttled to avoid a reload loop
+      // if the failure is a real, persistent one instead of a stale-hash blip.
+      (function () {
+        var RELOAD_KEY = "novafi:chunk-reload-at";
+        var THROTTLE_MS = 10000;
+        function isChunkLoadError(err) {
+          if (!err) return false;
+          if (err.name === "ChunkLoadError") return true;
+          var msg = String(err.message || err);
+          return /Loading (chunk|CSS chunk) [\w.-]+ failed/.test(msg);
+        }
+        window.addEventListener(
+          "unhandledrejection",
+          function (event) {
+            if (!isChunkLoadError(event.reason)) return;
+            var last = Number(sessionStorage.getItem(RELOAD_KEY) || 0);
+            var now = Date.now();
+            if (now - last < THROTTLE_MS) return;
+            sessionStorage.setItem(RELOAD_KEY, String(now));
+            event.preventDefault();
+            window.location.reload();
+          },
+          true
+        );
+      })();
     </script>
     <link rel="icon" type="image/x-icon" href="%PUBLIC_URL%/logoFN.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
