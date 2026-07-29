@@ -45,6 +45,14 @@ module.exports = function override(config) {
       module: /ox[\\/].*virtualMasterPool/,
       message: /Critical dependency: the request of a dependency is an expression/,
     },
+    // Several transitive deps (superstruct, @reown/appkit-*, etc.) publish only
+    // their compiled dist/ without the .ts sources their sourcemaps reference,
+    // so source-map-loader can never resolve them. Harmless noise for any
+    // package under node_modules, not specific to any one of them.
+    {
+      module: /node_modules/,
+      message: /Failed to parse source map/,
+    },
   ];
 
   return config;
