@@ -1,8 +1,10 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route, Outlet, Navigate } from "react-router-dom";
+import { Routes, Route, Outlet } from "react-router-dom";
 
 import Header from "./Header";
 import Footer from "./Footer";
+import LandingNavbar from "./landing/Navbar";
+import LandingFooter from "./landing/Footer";
 
 const SwapView       = lazy(() => import("../views/SwapView"));
 const LiquidityView  = lazy(() => import("../views/LiquidityView"));
@@ -11,6 +13,10 @@ const CoinDetailsView = lazy(() => import("../views/CoinDetailsView"));
 const NFTView        = lazy(() => import("../views/NFTView"));
 const BlogView       = lazy(() => import("../views/BlogView"));
 const NotFound       = lazy(() => import("../views/NotFound"));
+
+const LandingHomeView    = lazy(() => import("../views/landing/LandingHomeView"));
+const LandingTradingView = lazy(() => import("../views/landing/LandingTradingView"));
+const LandingAboutView   = lazy(() => import("../views/landing/LandingAboutView"));
 
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
@@ -28,10 +34,29 @@ const Layout = () => (
   </>
 );
 
+// Marketing site (Home/Trading/About) — its own nav/footer, distinct from the
+// dApp's wallet-connect Header. Scoped to a wrapper div (not <body>) so its
+// bg-nova-* theme doesn't leak into the /swap, /liquidity, etc. dApp routes.
+const LandingLayout = () => (
+  <div className="min-h-screen bg-nova-bg text-nova-text">
+    <LandingNavbar />
+    <main>
+      <Outlet />
+    </main>
+    <LandingFooter />
+  </div>
+);
+
 export function Routers() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
+        <Route element={<LandingLayout />}>
+          <Route path="/"        element={<LandingHomeView />} />
+          <Route path="/trading" element={<LandingTradingView />} />
+          <Route path="/about"   element={<LandingAboutView />} />
+        </Route>
+
         <Route element={<Layout />}>
           <Route path="/swap"      element={<SwapView />} />
           <Route path="/liquidity" element={<LiquidityView />} />
@@ -40,7 +65,6 @@ export function Routers() {
           <Route path="/nft"       element={<NFTView />} />
           <Route path="/blog"      element={<BlogView />} />
 
-          <Route path="/" element={<Navigate to="/swap" />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

@@ -4,7 +4,7 @@
 
 # novaFi
 
-Decentralized DeFi trading platform on BNB Chain. Real on-chain token swaps and liquidity via PancakeSwap V2, real-time cryptocurrency data, NFT gallery, and a blog backed by a SQLite database.
+Decentralized DeFi trading platform on BNB Chain. Real on-chain token swaps and liquidity via PancakeSwap V2, real-time cryptocurrency data, NFT gallery, a blog backed by a SQLite database, and a marketing landing site.
 
 ---
 
@@ -19,6 +19,7 @@ Decentralized DeFi trading platform on BNB Chain. Real on-chain token swaps and 
 | Wallets | wagmi v2 + RainbowKit v2 — EIP-6963 multi-wallet detection, WalletConnect (QR/mobile), OKX, Binance, Coinbase, Trust |
 | Auth | JWT + bcryptjs |
 | Charts | Recharts |
+| Landing animations | framer-motion (`src/components/landing/*` only) |
 
 ---
 
@@ -94,6 +95,9 @@ npm run server     # Backend only (port 1357)
 
 | Route | View |
 |---|---|
+| `/` | Landing home page (marketing) |
+| `/trading` | Landing trading showcase (marketing, mock market data — not the real swap interface) |
+| `/about` | Landing about page (marketing) |
 | `/swap` | On-chain token swap (PancakeSwap V2) with live AMM quotes, price impact and real-time chart |
 | `/liquidity` | Liquidity pools with live on-chain TVL, add/remove liquidity |
 | `/overview` | Global market stats + top tokens table with sparklines and search |
@@ -142,9 +146,13 @@ novaFi/
 ├── .env.example      # Frontend env template (REACT_APP_API_URL)
 ├── src/
 │   ├── views/        # Swap, Liquidity, Overview, Coins, NFT, Blog
+│   │   └── landing/  # LandingHomeView, LandingTradingView, LandingAboutView
 │   ├── components/   # Header, Footer, Router, AuthModal
+│   │   └── landing/  # Marketing-site Navbar/Footer/Hero/CTASection/etc.
 │   ├── config/       # wagmi.ts (chains/wallets), rainbowkitTheme.ts (connect modal theme)
 │   ├── hooks/        # useWallet, useLiveData, useTokenBalance, useSwitchChain
+│   ├── lib/
+│   │   └── landing/  # motion.ts (framer-motion variants), markets.ts (mock market data)
 │   ├── utils/        # txErrors.ts (chain guard + error taxonomy)
 │   └── services/     # coingecko.service.ts, pg.api.service.ts
 ├── backend/
@@ -161,8 +169,8 @@ novaFi/
 
 ## Security notes
 
-- `backend/.env` is in `.gitignore` — never pushed to the repository
-- `backend/database.sqlite` is in `.gitignore` — data stays local
 - Passwords are hashed with bcrypt (12 rounds)
 - JWT expires in 7 days
 - Protected routes require `Authorization: Bearer <token>`
+
+> **Known issue:** `backend/.env` (including the real `JWT_SECRET`) and `backend/database.sqlite`/`-shm`/`-wal` are currently **tracked in git**, not excluded — the root `.gitignore` doesn't cover anything under `backend/`. This means real user data and the JWT secret get committed. See `CLAUDE.md` → "Known issues — open" for the fix (add them to `.gitignore`, `git rm --cached`, rotate the secret).
